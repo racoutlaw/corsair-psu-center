@@ -94,10 +94,18 @@ if [ -n "$HW" ]; then
   fi
 fi
 
-removepkg &name; 2&gt;/dev/null
+# removepkg needs the full versioned package name as it appears in
+# /var/lib/pkgtools/packages - the bare plugin name does NOT match and fails
+# with "No such package", silently orphaning the installed files.
+# Glob so this still works after a version bump.
+for pkg in /var/lib/pkgtools/packages/&name;-*; do
+  [ -e "$pkg" ] &amp;&amp; removepkg "$(basename "$pkg")" &gt;/dev/null 2&gt;&amp;1
+done
+
 rm -rf "/usr/local/emhttp/plugins/&name;"
 rm -rf "&plugdir;"
 rm -f "/boot/config/plugins/&name;.plg"
+rm -f /var/run/corsairpsucenter-fand.pid
 echo "Corsair PSU Center removed."
 </INLINE>
 </FILE>
