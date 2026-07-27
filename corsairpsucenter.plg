@@ -1,0 +1,105 @@
+<?xml version='1.0' standalone='yes'?>
+<!DOCTYPE PLUGIN [
+<!ENTITY name      "corsairpsucenter">
+<!ENTITY author    "racoutlaw">
+<!ENTITY version   "2026.07.26">
+<!ENTITY launch    "CorsairPSUCenter">
+<!ENTITY gitURL    "https://raw.githubusercontent.com/racoutlaw/corsair-psu-center/main">
+<!ENTITY pluginURL "&gitURL;/&name;.plg">
+<!ENTITY source    "&gitURL;/archive/&name;-&version;-x86_64.txz">
+<!ENTITY md5       "099b44d1f86c41608a4c906ae74362e1">
+<!ENTITY plugdir   "/boot/config/plugins/&name;">
+]>
+
+<PLUGIN name="&name;"
+        author="&author;"
+        version="&version;"
+        pluginURL="&pluginURL;"
+        launch="&launch;"
+        icon="bolt"
+        min="6.12.0"
+        support="https://github.com/racoutlaw/corsair-psu-center/issues">
+
+<CHANGES>
+###&version;
+- First release.
+- iCUE-style dashboard for Corsair HXi / RMi digital power supplies.
+- Live sensor tiles (per-rail volts/amps/watts, temps, fan, efficiency,
+  input/output power) read from the kernel corsair-psu hwmon driver, so
+  polling costs no USB traffic and cannot collide with anything else.
+- Fan control: default (PSU firmware), fixed duty, or a custom curve with a
+  draggable editor, plus Quiet / Balanced / Performance / Max presets.
+- +12V OCP single/multi rail toggle.
+- Model is auto-detected; 12 supported PSUs, each with its own efficiency
+  coefficients.
+- Self-contained: bundles every python module it needs. No pip, no internet
+  access required at install or boot.
+</CHANGES>
+
+<!-- download + install the package (checksum verified) -->
+<FILE Name="&plugdir;/&name;-&version;-x86_64.txz" Run="upgradepkg --install-new">
+  <URL>&source;</URL>
+  <MD5>&md5;</MD5>
+</FILE>
+
+<!-- post-install -->
+<FILE Run="/bin/bash">
+<INLINE>
+mkdir -p &plugdir;
+chmod 755 /usr/local/emhttp/plugins/&name;/fand.sh 2>/dev/null
+
+# Warn (do not fail) if the kernel driver has not bound a supported PSU.
+if ! grep -qs corsairpsu /sys/class/hwmon/hwmon*/name; then
+  echo ""
+  echo "  NOTE: no Corsair digital PSU detected yet."
+  echo "  This plugin needs a HXi/RMi series unit connected via its USB cable,"
+  echo "  handled by the kernel 'corsair-psu' driver. Check the cable, then"
+  echo "  reload the page."
+  echo ""
+fi
+
+# If a fan curve was active before a reboot, bring the service back up.
+CFG=&plugdir;/settings.cfg
+if [ -f "$CFG" ] &amp;&amp; grep -q 'mode="curve"' "$CFG"; then
+  setsid /usr/local/emhttp/plugins/&name;/fand.sh &gt;/dev/null 2&gt;&amp;1 &lt; /dev/null &amp;
+fi
+
+echo ""
+echo "-----------------------------------------------------------"
+echo " Corsair PSU Center &version; installed"
+echo " Open the 'CorsairPSUCenter' tab in the top menu."
+echo "-----------------------------------------------------------"
+echo ""
+</INLINE>
+</FILE>
+
+<!-- uninstall -->
+<FILE Run="/bin/bash" Method="remove">
+<INLINE>
+# stop the fan curve service and hand the fan back to the PSU firmware
+if [ -f /var/run/corsairpsucenter-fand.pid ]; then
+  kill "$(cat /var/run/corsairpsucenter-fand.pid)" 2&gt;/dev/null
+  rm -f /var/run/corsairpsucenter-fand.pid
+fi
+HW=""
+for h in /sys/class/hwmon/hwmon*; do
+  [ "$(cat $h/name 2&gt;/dev/null)" = "corsairpsu" ] &amp;&amp; HW=$h
+done
+if [ -n "$HW" ]; then
+  HID=$(grep -o 'HID_ID=[0-9A-Fa-f]*:[0-9A-Fa-f]*:[0-9A-Fa-f]*' "$HW/device/uevent" 2&gt;/dev/null)
+  VID=$(echo "$HID" | cut -d: -f2); PID=$(echo "$HID" | cut -d: -f3)
+  if [ -n "$VID" ]; then
+    python3 -m liquidctl --vendor 0x$(printf '%04x' $((16#$VID))) \
+      --product 0x$(printf '%04x' $((16#$PID))) initialize --direct-access &gt;/dev/null 2&gt;&amp;1
+  fi
+fi
+
+removepkg &name; 2&gt;/dev/null
+rm -rf "/usr/local/emhttp/plugins/&name;"
+rm -rf "&plugdir;"
+rm -f "/boot/config/plugins/&name;.plg"
+echo "Corsair PSU Center removed."
+</INLINE>
+</FILE>
+
+</PLUGIN>
