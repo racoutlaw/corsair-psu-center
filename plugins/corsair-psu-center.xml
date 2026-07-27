@@ -1,0 +1,41 @@
+<Plugin>
+
+  <Name>Corsair PSU Center</Name>
+
+  <Overview>
+An iCUE-style dashboard and fan control for Corsair HXi and RMi digital power supplies.
+
+Corsair's iCUE software is Windows-only, so a Corsair digital PSU in an Unraid server normally means no monitoring and no fan control at all. This adds both, in its own tab.
+
+MONITORING - live per-rail voltage, current and power for +12V, +5V and +3.3V; total power out, estimated power in, efficiency and load; VRM and case temperatures; fan RPM. Every reading carries a running min/max and a live sparkline. Sensors are read from the kernel corsair-psu hwmon driver, so polling costs no USB traffic and cannot collide with other software.
+
+FAN CONTROL - hand the fan to the PSU firmware (zero-RPM idle), hold a fixed duty, or build a custom curve with a drag-and-drop editor mapping VRM temperature to fan duty. Presets for Quiet, Balanced, Performance and Max.
+
++12V OCP - switch between single-rail and multi-rail overcurrent protection. Single rail uses one combined threshold for the whole +12V output, which means fewer nuisance trips when several drives spin up at once.
+
+The PSU model is detected automatically. Supported: HX750i, HX850i, HX1000i, HX1000i (2022), HX1200i, HX1200i ATX 3.1, HX1500i, RM650i, RM750i, RM850i, RM1000i. An unrecognised Corsair digital PSU still reports every sensor the kernel exposes and keeps fan control; only efficiency and load percentage are hidden, since those need model-specific data.
+
+Self-contained - bundles every Python module it needs, so there is nothing to install by hand and no internet access required at boot.
+
+Note: these PSUs cannot store a fan curve in firmware, so custom curves are driven from Unraid by a small background service, exactly as iCUE does on Windows. Minimum fan duty is 30%.
+
+Tested on real hardware with an HX1000i. The other models share the same detection path but are untested - reports welcome.
+  </Overview>
+
+  <PluginURL>https://raw.githubusercontent.com/racoutlaw/corsair-psu-center/main/corsairpsucenter.plg</PluginURL>
+
+  <PluginAuthor>racoutlaw</PluginAuthor>
+
+  <Project>https://github.com/racoutlaw/corsair-psu-center</Project>
+
+  <ReadMe>https://raw.githubusercontent.com/racoutlaw/corsair-psu-center/main/README.md</ReadMe>
+
+  <Category>Tools:System</Category>
+
+  <IconFA>bolt</IconFA>
+
+  <License>GPLv2</License>
+
+  <Screenshot>https://raw.githubusercontent.com/racoutlaw/corsair-psu-center/main/docs/screenshot.png</Screenshot>
+
+</Plugin>
