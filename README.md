@@ -7,6 +7,8 @@ Corsair's own iCUE software is Windows-only, so a Corsair digital PSU in an Unra
 server normally means no monitoring and no fan control at all. This plugin adds both,
 in its own tab.
 
+![Corsair PSU Center](docs/screenshot.png)
+
 > **Status:** working and in daily use on an ASUS X299 / Unraid 7.2.7 box with an
 > HX1000i. Only that model has been tested on real hardware — the other eleven are
 > supported by the same detection path but are, honestly, untested. Reports welcome.
