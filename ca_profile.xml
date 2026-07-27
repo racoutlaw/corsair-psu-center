@@ -1,0 +1,13 @@
+<CommunityApplications>
+  <Profile>
+Plugins for getting more out of hardware that ships with Windows-only software.
+
+**Corsair PSU Center** — an iCUE-style dashboard and fan control for Corsair HXi and
+RMi digital power supplies. Live per-rail voltage, current and power, temperatures,
+fan speed and efficiency, plus fan curve control and the +12V OCP rail toggle, all in
+its own tab.
+
+Support and bug reports via GitHub issues on the project page.
+  </Profile>
+  <WebPage>https://github.com/racoutlaw/corsair-psu-center</WebPage>
+</CommunityApplications>
