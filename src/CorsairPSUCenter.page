@@ -1,0 +1,379 @@
+Menu="Tasks:75"
+Title="Corsair PSU"
+Icon="corsairpsucenter.png"
+---
+<style>
+/* Everything below is sized in em relative to #cpc's own font-size, so the
+   whole app scales from one number. --cpc-scale is set from the A-/A+ buttons
+   and remembered in localStorage. */
+#cpc { --cpc-scale:1;
+       font-size:calc(15px * var(--cpc-scale));
+       background:#16181d; color:#e8eaed; border-radius:6px; padding:0; margin:-12px 0 0 0;
+       font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; overflow:hidden; }
+#cpc * { box-sizing:border-box; }
+.cpc-top { display:flex; align-items:center; gap:1em; padding:1em 1.2em;
+           background:#1b1e24; border-bottom:1px solid #2a2f38; }
+.cpc-top .name { font-size:1.25em; font-weight:600; letter-spacing:.5px; }
+.cpc-dot { width:.65em; height:.65em; border-radius:50%; background:#6fc26f; display:inline-block; flex:none; }
+.cpc-dot.off { background:#d05353; }
+.cpc-top .spacer { flex:1; }
+.cpc-top .big { font-size:1.9em; font-weight:600; color:#f0c040; line-height:1.1; }
+.cpc-top .sub { font-size:.8em; color:#8a9099; text-transform:uppercase; letter-spacing:1px; }
+.cpc-zoom button { background:#2a2f38; color:#e8eaed; border:1px solid #39404b; border-radius:4px;
+                   width:2.1em; height:2.1em; cursor:pointer; font-size:1em; margin-left:.25em; }
+.cpc-zoom button:hover { background:#39404b; }
+.cpc-body { display:flex; gap:1em; padding:1em; align-items:flex-start; }
+.cpc-side { width:17em; flex:none; }
+.cpc-main { flex:1; min-width:0; }
+.cpc-card { background:#1b1e24; border:1px solid #2a2f38; border-radius:5px; padding:.9em; margin-bottom:.9em; }
+.cpc-card h3 { margin:0 0 .7em 0; font-size:.85em; text-transform:uppercase; letter-spacing:1.2px;
+               color:#9aa0a8; font-weight:600; }
+/* auto-fit means bigger scale => fewer, wider tiles automatically */
+.cpc-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(15.5em,1fr)); gap:.55em; }
+.tile { display:flex; background:#2a2f38; border-radius:4px; overflow:hidden; min-height:6em; }
+.tile .vbox { background:#22262e; padding:.65em .8em 0 .8em; width:52%; position:relative; display:flex;
+              flex-direction:column; justify-content:flex-start; }
+.tile .val { font-size:1.85em; font-weight:600; line-height:1.1; white-space:nowrap; }
+.tile .val .u { font-size:.5em; font-weight:400; color:#8a9099; margin-left:.3em; }
+.tile .mm { font-size:.78em; color:#7a8089; margin-top:.2em; white-space:nowrap; }
+.tile .spark { position:absolute; left:0; bottom:0; width:100%; height:1.7em; display:block; }
+.tile .lbl { padding:.65em .8em; font-size:1em; color:#d2d6dc; display:flex; align-items:center; }
+.cpc-btn { background:#2a2f38; color:#e8eaed; border:1px solid #39404b; border-radius:4px;
+           padding:.45em .9em; cursor:pointer; font-size:.9em; margin:0 .45em .45em 0; }
+.cpc-btn:hover { background:#333944; }
+.cpc-btn.active { background:#f0c040; color:#16181d; border-color:#f0c040; font-weight:600; }
+.cpc-preset { display:block; width:100%; text-align:left; background:#22262e; color:#c8ccd2;
+              border:1px solid #2a2f38; border-radius:4px; padding:.55em .75em; margin-bottom:.35em;
+              cursor:pointer; font-size:.92em; }
+.cpc-preset:hover { background:#2a2f38; }
+.cpc-preset.active { background:#f0c040; color:#16181d; font-weight:600; border-color:#f0c040; }
+.cpc-row { display:flex; justify-content:space-between; font-size:.95em; padding:.25em 0; color:#b2b8c0; }
+.cpc-row b { color:#e8eaed; font-weight:600; }
+#curveSvg { width:100%; height:20em; display:block; touch-action:none; }
+#curveSvg circle.pt { fill:#fff; stroke:#f0c040; stroke-width:2; cursor:grab; }
+#curveSvg circle.pt:hover { fill:#f0c040; }
+.cpc-note { font-size:.82em; color:#7c828b; margin-top:.6em; line-height:1.5; }
+.cpc-msg { font-size:.88em; padding:.5em .75em; border-radius:4px; margin-top:.6em; display:none; }
+.cpc-msg.ok { background:#1e3a24; color:#8fd18f; display:block; }
+.cpc-msg.err { background:#3a1e1e; color:#e08585; display:block; }
+.cpc-slider { width:100%; margin:.5em 0; }
+</style>
+
+<div id="cpc">
+  <div class="cpc-top">
+    <span class="cpc-dot" id="dot"></span>
+    <span class="name" id="devname">CORSAIR HX1000i</span>
+    <span class="spacer"></span>
+    <div class="cpc-zoom" title="Text size">
+      <button id="zOut">&minus;</button><button id="zRst">A</button><button id="zIn">+</button>
+    </div>
+    <div style="text-align:right">
+      <div class="big"><span id="topLoad">--</span> W</div>
+      <div class="sub">Total Draw <span id="topCap"></span></div>
+    </div>
+  </div>
+
+  <div class="cpc-body">
+    <div class="cpc-side">
+      <div class="cpc-card">
+        <h3>Device</h3>
+        <div class="cpc-row"><span>Status</span><b id="sStatus">--</b></div>
+        <div class="cpc-row"><span>Input</span><b id="sInput">--</b></div>
+        <div class="cpc-row"><span>Efficiency</span><b id="sEff">--</b></div>
+        <div class="cpc-row"><span>Fan</span><b id="sFan">--</b></div>
+        <div class="cpc-row"><span>Fan mode</span><b id="sMode">--</b></div>
+      </div>
+
+      <div class="cpc-card">
+        <h3>Cooling Presets</h3>
+        <button class="cpc-preset" data-preset="auto">Default (PSU controlled)</button>
+        <button class="cpc-preset" data-preset="quiet">Quiet</button>
+        <button class="cpc-preset" data-preset="balanced">Balanced</button>
+        <button class="cpc-preset" data-preset="performance">Performance</button>
+        <button class="cpc-preset" data-preset="max">Max (100%)</button>
+      </div>
+
+      <div class="cpc-card">
+        <h3>+12V OCP Rail Mode</h3>
+        <button class="cpc-btn" id="ocpSingle">Single Rail</button>
+        <button class="cpc-btn" id="ocpMulti">Multi Rail</button>
+        <div class="cpc-row"><span>Last set</span><b id="sOcp">--</b></div>
+        <div class="cpc-note">Single rail uses one combined overcurrent threshold for the whole +12V
+        output &mdash; fewer nuisance trips when several drives spin up together. Multi rail (factory
+        default) protects each output group separately.</div>
+      </div>
+    </div>
+
+    <div class="cpc-main">
+      <div class="cpc-grid" id="tiles"></div>
+
+      <div class="cpc-card" style="margin-top:12px">
+        <h3>Fan Curve</h3>
+        <div>
+          <button class="cpc-btn" id="mAuto">Default</button>
+          <button class="cpc-btn" id="mFixed">Fixed %</button>
+          <button class="cpc-btn" id="mCurve">Custom Curve</button>
+        </div>
+        <div id="fixedBox" style="display:none">
+          <input type="range" min="30" max="100" value="40" class="cpc-slider" id="fixedSlider">
+          <div class="cpc-row"><span>Fixed duty</span><b><span id="fixedVal">40</span>%</b></div>
+          <button class="cpc-btn" id="applyFixed">Apply Fixed Speed</button>
+        </div>
+        <div id="curveBox" style="display:none">
+          <svg id="curveSvg" viewBox="0 0 660 270" preserveAspectRatio="none"></svg>
+          <button class="cpc-btn" id="applyCurve">Apply Curve</button>
+          <span style="font-size:.75rem;color:#8a9099">Drag the points. X = VRM temperature, Y = fan duty.</span>
+        </div>
+        <div class="cpc-note" id="fanNote"></div>
+        <div class="cpc-msg" id="msg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+const API = '/plugins/corsairpsucenter/api.php';
+
+const TILES = [
+  {k:'fan_rpm',   l:'Fan',            u:'RPM', c:'#6fa8dc', d:0},
+  {k:'efficiency',l:'Efficiency',     u:'%',   c:'#6fc26f', d:1},
+  {k:'temp_vrm',  l:'VRM Temp',       u:'°C', c:'#e0904a', d:2},
+  {k:'temp_case', l:'Case Temp',      u:'°C', c:'#e0904a', d:1},
+  {k:'power_in',  l:'Power In',       u:'W',   c:'#b98ee6', d:0},
+  {k:'power_out', l:'Power Out',      u:'W',   c:'#b98ee6', d:0},
+  {k:'v_in',      l:'Input Voltage',  u:'V',   c:'#b98ee6', d:1},
+  {k:'load_pct',  l:'Load',           u:'%',   c:'#6fc26f', d:1},
+  {k:'v_12',      l:'12V Voltage',    u:'V',   c:'#b98ee6', d:2},
+  {k:'c_12',      l:'12V Current',    u:'A',   c:'#b98ee6', d:2},
+  {k:'p_12',      l:'12V Power',      u:'W',   c:'#b98ee6', d:0},
+  {k:'v_5',       l:'5V Voltage',     u:'V',   c:'#b98ee6', d:2},
+  {k:'c_5',       l:'5V Current',     u:'A',   c:'#b98ee6', d:2},
+  {k:'p_5',       l:'5V Power',       u:'W',   c:'#b98ee6', d:1},
+  {k:'v_33',      l:'3.3V Voltage',   u:'V',   c:'#b98ee6', d:2},
+  {k:'c_33',      l:'3.3V Current',   u:'A',   c:'#b98ee6', d:2},
+  {k:'p_33',      l:'3.3V Power',     u:'W',   c:'#b98ee6', d:1}
+];
+
+const PRESETS = {
+  auto:        null,
+  quiet:       '20,30 50,30 65,40 80,60 90,85',
+  balanced:    '20,30 45,35 60,55 75,75 90,100',
+  performance: '20,40 40,55 55,75 70,90 85,100',
+  max:         '20,100 100,100'
+};
+
+const HIST = {}, MIN = {}, MAX = {};
+TILES.forEach(t => { HIST[t.k] = []; });
+
+// build tiles
+const grid = document.getElementById('tiles');
+grid.innerHTML = TILES.map(t => `
+  <div class="tile">
+    <div class="vbox">
+      <div class="val" style="color:${t.c}"><span id="v_${t.k}">--</span><span class="u">${t.u}</span></div>
+      <div class="mm">&darr; <span id="lo_${t.k}">--</span> &nbsp; &uarr; <span id="hi_${t.k}">--</span></div>
+      <svg class="spark" id="sp_${t.k}" viewBox="0 0 100 24" preserveAspectRatio="none">
+        <polyline fill="none" stroke="${t.c}" stroke-width="1.4" points=""/>
+      </svg>
+    </div>
+    <div class="lbl">${t.l}</div>
+  </div>`).join('');
+
+function spark(k){
+  const h = HIST[k]; if (h.length < 2) return;
+  let lo = Math.min(...h), hi = Math.max(...h);
+  if (hi - lo < 1e-9) { hi = lo + 1; }
+  const n = h.length;
+  const pts = h.map((v,i) => {
+    const x = (i/(n-1))*100;
+    const y = 23 - ((v-lo)/(hi-lo))*21;
+    return x.toFixed(1)+','+y.toFixed(1);
+  }).join(' ');
+  document.querySelector('#sp_'+k+' polyline').setAttribute('points', pts);
+}
+
+let cfgMode = 'auto', curvePts = [];
+
+function setModeButtons(m){
+  document.getElementById('mAuto').classList.toggle('active', m==='auto');
+  document.getElementById('mFixed').classList.toggle('active', m==='fixed');
+  document.getElementById('mCurve').classList.toggle('active', m==='curve');
+  document.getElementById('fixedBox').style.display = (m==='fixed') ? 'block':'none';
+  document.getElementById('curveBox').style.display = (m==='curve') ? 'block':'none';
+}
+
+function refresh(){
+  fetch(API+'?action=status').then(r=>r.json()).then(s=>{
+    const dot = document.getElementById('dot');
+    if (!s.connected){ dot.className='cpc-dot off'; document.getElementById('sStatus').textContent='Not found'; return; }
+    dot.className='cpc-dot';
+    const f = (v,d)=> (v===null||v===undefined) ? '--' : Number(v).toFixed(d);
+    document.getElementById('devname').textContent = s.model;
+    document.getElementById('topLoad').textContent = f(s.power_out,0);
+    document.getElementById('topCap').textContent  =
+      (s.capacity && s.load_pct!==null) ? ('· '+f(s.load_pct,1)+'% of '+s.capacity+' W') : '';
+    document.getElementById('sStatus').textContent = s.known ? 'Connected' : 'Connected (unrecognised model)';
+    document.getElementById('sInput').textContent  = f(s.v_in,0)+' V';
+    document.getElementById('sEff').textContent    = s.efficiency===null ? 'n/a' : f(s.efficiency,1)+' %';
+    document.getElementById('sFan').textContent    = f(s.fan_rpm,0)+' RPM';
+    document.getElementById('sMode').textContent   =
+      s.fan_mode==='auto' ? 'Default' : (s.fan_mode==='fixed' ? 'Fixed '+s.fan_fixed+'%' : 'Custom curve');
+    document.getElementById('sOcp').textContent    = s.ocp_mode;
+
+    TILES.forEach(t=>{
+      const v = s[t.k];
+      // efficiency/power_in/load are null on an unrecognised model - show n/a
+      // rather than a stale or invented number
+      if (v===null||v===undefined){ document.getElementById('v_'+t.k).textContent='n/a'; return; }
+      document.getElementById('v_'+t.k).textContent = Number(v).toFixed(t.d);
+      MIN[t.k] = (MIN[t.k]===undefined)? v : Math.min(MIN[t.k], v);
+      MAX[t.k] = (MAX[t.k]===undefined)? v : Math.max(MAX[t.k], v);
+      document.getElementById('lo_'+t.k).textContent = Number(MIN[t.k]).toFixed(t.d);
+      document.getElementById('hi_'+t.k).textContent = Number(MAX[t.k]).toFixed(t.d);
+      HIST[t.k].push(v); if (HIST[t.k].length>60) HIST[t.k].shift();
+      spark(t.k);
+    });
+
+    if (cfgMode === null || cfgMode === undefined) cfgMode = s.fan_mode;
+    if (!curvePts.length) { curvePts = parseCurve(s.fan_curve); drawCurve(); }
+    document.getElementById('fixedSlider').value = s.fan_fixed;
+    document.getElementById('fixedVal').textContent = s.fan_fixed;
+    document.getElementById('fanNote').textContent = s.fan_mode==='curve'
+      ? ('Curve service '+(s.daemon?'running':'NOT running')+' — duty is re-applied from VRM temperature every 10s.')
+      : 'The PSU cannot store a curve in firmware, so custom curves are driven from Unraid (same as iCUE does on Windows). Minimum duty is 30%.';
+  }).catch(()=>{});
+}
+
+// ---- curve editor ----
+const X0=46, X1=600, Y0=236, Y1=18, TMIN=20, TMAX=100;
+function tx(t){ return X0 + (t-TMIN)/(TMAX-TMIN)*(X1-X0); }
+function ty(d){ return Y0 - (d/100)*(Y0-Y1); }
+function xt(x){ return Math.round(TMIN + (x-X0)/(X1-X0)*(TMAX-TMIN)); }
+function yd(y){ return Math.round((Y0-y)/(Y0-Y1)*100); }
+function parseCurve(s){
+  return (s||'').trim().split(/\s+/).map(p=>{
+    const a=p.split(','); return {t:+a[0], d:+a[1]};
+  }).filter(p=>!isNaN(p.t)&&!isNaN(p.d)).sort((a,b)=>a.t-b.t);
+}
+function drawCurve(){
+  const svg = document.getElementById('curveSvg');
+  let h = '';
+  h += `<rect x="${X0}" y="${Y1}" width="${X1-X0}" height="${Y0-Y1}" fill="#14161a"/>`;
+  h += `<rect x="${X0}" y="${ty(30)}" width="${X1-X0}" height="${Y0-ty(30)}" fill="#2a1a1a"/>`;
+  for(let d=0; d<=100; d+=25){
+    h += `<line x1="${X0}" y1="${ty(d)}" x2="${X1}" y2="${ty(d)}" stroke="#262b33"/>`;
+    h += `<text x="${X1+6}" y="${ty(d)+4}" fill="#6c727b" font-size="10">${d}%</text>`;
+  }
+  for(let t=TMIN; t<=TMAX; t+=10){
+    h += `<line x1="${tx(t)}" y1="${Y1}" x2="${tx(t)}" y2="${Y0}" stroke="#262b33"/>`;
+    h += `<text x="${tx(t)}" y="${Y0+16}" fill="#6c727b" font-size="10" text-anchor="middle">${t}°</text>`;
+  }
+  h += `<text x="${X0-6}" y="${ty(30)+4}" fill="#8a5a5a" font-size="9" text-anchor="end">min</text>`;
+  if (curvePts.length){
+    // The daemon clamps outside the end points, so draw the curve flat out to
+    // both edges - otherwise the chart implies the fan stops past the last point.
+    const first = curvePts[0], last = curvePts[curvePts.length-1];
+    const line = [`${X0},${ty(first.d)}`]
+      .concat(curvePts.map(p=>`${tx(p.t)},${ty(p.d)}`))
+      .concat([`${X1},${ty(last.d)}`]).join(' ');
+    h += `<polygon points="${X0},${Y0} ${line} ${X1},${Y0}" fill="#f0c04022"/>`;
+    h += `<polyline points="${line}" fill="none" stroke="#f0c040" stroke-width="2"/>`;
+    curvePts.forEach((p,i)=>{
+      h += `<circle class="pt" data-i="${i}" cx="${tx(p.t)}" cy="${ty(p.d)}" r="6"/>`;
+    });
+  }
+  svg.innerHTML = h;
+  svg.querySelectorAll('circle.pt').forEach(c=>{
+    c.addEventListener('mousedown', startDrag);
+  });
+}
+let dragIdx=null;
+function startDrag(e){ dragIdx = +e.target.dataset.i; e.preventDefault(); }
+document.addEventListener('mousemove', e=>{
+  if (dragIdx===null) return;
+  const svg=document.getElementById('curveSvg'), r=svg.getBoundingClientRect();
+  const sx=(e.clientX-r.left)/r.width*660, sy=(e.clientY-r.top)/r.height*270;
+  let t=xt(sx), d=yd(sy);
+  t=Math.max(TMIN,Math.min(TMAX,t)); d=Math.max(30,Math.min(100,d));
+  const prev=curvePts[dragIdx-1], next=curvePts[dragIdx+1];
+  if(prev) t=Math.max(t,prev.t+1);
+  if(next) t=Math.min(t,next.t-1);
+  curvePts[dragIdx]={t:t,d:d};
+  drawCurve();
+});
+document.addEventListener('mouseup', ()=>{ dragIdx=null; });
+
+function msg(ok,txt){
+  const m=document.getElementById('msg');
+  m.className='cpc-msg '+(ok?'ok':'err');
+  m.textContent=txt;
+  setTimeout(()=>{ m.className='cpc-msg'; }, 6000);
+}
+function post(params){
+  // Unraid rejects POSTs to plugin endpoints without its CSRF token.
+  // csrf_token is a global provided by the webGui on every page.
+  params.csrf_token = (typeof csrf_token !== 'undefined') ? csrf_token : '';
+  return fetch(API, {method:'POST', credentials:'same-origin',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams(params)}).then(r=>r.text()).then(t=>{
+      try { return JSON.parse(t); }
+      catch(e){ return {ok:false, output:'Bad response from server: '+t.slice(0,200)}; }
+    });
+}
+
+document.getElementById('mAuto').onclick  = ()=>{ cfgMode='auto';  setModeButtons('auto');
+  post({action:'setfanmode',mode:'auto'}).then(r=>{ msg(r.ok, r.ok?'Fan handed back to PSU firmware.':r.output); refresh(); }); };
+document.getElementById('mFixed').onclick = ()=>{ cfgMode='fixed'; setModeButtons('fixed'); };
+document.getElementById('mCurve').onclick = ()=>{ cfgMode='curve'; setModeButtons('curve'); drawCurve(); };
+
+document.getElementById('fixedSlider').oninput = e=>{ document.getElementById('fixedVal').textContent=e.target.value; };
+document.getElementById('applyFixed').onclick = ()=>{
+  const d=document.getElementById('fixedSlider').value;
+  post({action:'setfanmode',mode:'fixed',fixed:d}).then(r=>{ msg(r.ok, r.ok?('Fan set to '+d+'%.'):r.output); refresh(); });
+};
+document.getElementById('applyCurve').onclick = ()=>{
+  const c=curvePts.map(p=>p.t+','+p.d).join(' ');
+  post({action:'setfanmode',mode:'curve',curve:c}).then(r=>{ msg(r.ok, r.ok?'Curve applied and service started.':r.output); refresh(); });
+};
+document.querySelectorAll('.cpc-preset').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('.cpc-preset').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    const p=b.dataset.preset;
+    if (p==='auto'){ cfgMode='auto'; setModeButtons('auto');
+      post({action:'setfanmode',mode:'auto'}).then(r=>{ msg(r.ok, r.ok?'Default (PSU controlled).':r.output); refresh(); });
+    } else if (p==='max'){
+      // A flat 100% "curve" needs no daemon - set it once as a fixed duty.
+      cfgMode='fixed'; setModeButtons('fixed');
+      document.getElementById('fixedSlider').value = 100;
+      document.getElementById('fixedVal').textContent = 100;
+      post({action:'setfanmode',mode:'fixed',fixed:100}).then(r=>{ msg(r.ok, r.ok?'Fan set to 100% (maximum).':r.output); refresh(); });
+    } else {
+      curvePts=parseCurve(PRESETS[p]); cfgMode='curve'; setModeButtons('curve'); drawCurve();
+      post({action:'setfanmode',mode:'curve',curve:PRESETS[p]}).then(r=>{ msg(r.ok, r.ok?('Preset "'+p+'" applied.'):r.output); refresh(); });
+    }
+  };
+});
+document.getElementById('ocpSingle').onclick = ()=>
+  post({action:'setocp',mode:'single'}).then(r=>{ msg(r.ok, r.ok?'OCP set to single rail.':r.output); refresh(); });
+document.getElementById('ocpMulti').onclick = ()=>
+  post({action:'setocp',mode:'multi'}).then(r=>{ msg(r.ok, r.ok?'OCP set to multi rail.':r.output); refresh(); });
+
+// ---- text size (persisted per browser) ----
+const app = document.getElementById('cpc');
+let scale = parseFloat(localStorage.getItem('cpcScale') || '1');
+function applyScale(){
+  scale = Math.max(0.8, Math.min(2.0, Math.round(scale*100)/100));
+  app.style.setProperty('--cpc-scale', scale);
+  localStorage.setItem('cpcScale', scale);
+}
+document.getElementById('zIn').onclick  = ()=>{ scale += 0.1; applyScale(); };
+document.getElementById('zOut').onclick = ()=>{ scale -= 0.1; applyScale(); };
+document.getElementById('zRst').onclick = ()=>{ scale = 1;    applyScale(); };
+applyScale();
+
+refresh();
+setInterval(refresh, 2000);
+})();
+</script>
