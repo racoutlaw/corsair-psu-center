@@ -18,7 +18,7 @@
         launch="&launch;"
         icon="bolt"
         min="6.12.0"
-        support="https://github.com/racoutlaw/corsair-psu-center/issues">
+        support="https://forums.unraid.net/topic/200056-plugin-corsair-psu-center-icue-style-dashboard-and-fan-control-for-corsair-hxirmi-psus/">
 
 <CHANGES>
 ###&version;
