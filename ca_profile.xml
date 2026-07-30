@@ -7,7 +7,9 @@ RMi digital power supplies. Live per-rail voltage, current and power, temperatur
 fan speed and efficiency, plus fan curve control and the +12V OCP rail toggle, all in
 its own tab.
 
-Support and bug reports via GitHub issues on the project page.
+Support, questions and bug reports are best raised in the Unraid forum support thread.
+GitHub issues also work if you would rather report there.
   </Profile>
   <WebPage>https://github.com/racoutlaw/corsair-psu-center</WebPage>
+  <Forum>https://forums.unraid.net/topic/200056-plugin-corsair-psu-center-icue-style-dashboard-and-fan-control-for-corsair-hxirmi-psus/</Forum>
 </CommunityApplications>
