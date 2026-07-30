@@ -106,6 +106,19 @@ Consequences worth knowing:
 
 ---
 
+## Support
+
+**[Unraid forum support thread](https://forums.unraid.net/topic/200056-plugin-corsair-psu-center-icue-style-dashboard-and-fan-control-for-corsair-hxirmi-psus/)** —
+best place for questions, problems, or to report how it behaves on your hardware.
+GitHub issues work too if you'd rather report there.
+
+Reports from **other PSU models are especially welcome.** Only the HX1000i has been
+tested on real hardware; the other eleven share the same detection path but nobody has
+confirmed them yet. If you run one, it's useful to know whether the model name, wattage
+and efficiency read correctly.
+
+---
+
 ## Layout
 
 ```
@@ -115,6 +128,8 @@ src/                     readable sources (also inside the package)
   api.php                telemetry + control endpoint
   fand.sh                fan curve daemon
   CorsairPSUCenter.page  the UI
+ca_profile.xml           Community Applications repository profile
+plugins/                 Community Applications plugin template
 ```
 
 ---
