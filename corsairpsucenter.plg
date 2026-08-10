@@ -2,12 +2,12 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "corsairpsucenter">
 <!ENTITY author    "racoutlaw">
-<!ENTITY version   "2026.07.26">
+<!ENTITY version   "2026.08.09">
 <!ENTITY launch    "CorsairPSUCenter">
 <!ENTITY gitURL    "https://raw.githubusercontent.com/racoutlaw/corsair-psu-center/main">
 <!ENTITY pluginURL "&gitURL;/&name;.plg">
 <!ENTITY source    "&gitURL;/archive/&name;-&version;-x86_64.txz">
-<!ENTITY md5       "099b44d1f86c41608a4c906ae74362e1">
+<!ENTITY md5       "951117b827d1c00527fdc1f8bd72450b">
 <!ENTITY plugdir   "/boot/config/plugins/&name;">
 ]>
 
@@ -21,7 +21,13 @@
         support="https://forums.unraid.net/topic/200056-plugin-corsair-psu-center-icue-style-dashboard-and-fan-control-for-corsair-hxirmi-psus/">
 
 <CHANGES>
-###&version;
+###2026.08.09
+- Fan control now works on Unraid systems with no Python installed. The plugin
+  bundles its own Python 3.11 runtime, so liquidctl no longer needs a system
+  python3 (Unraid does not ship Python by default). Fixes "python3: command not
+  found" on any fan action.
+- Now fully self-contained: bundled interpreter plus every module it needs.
+###2026.07.26
 - First release.
 - iCUE-style dashboard for Corsair HXi / RMi digital power supplies.
 - Live sensor tiles (per-rail volts/amps/watts, temps, fan, efficiency,
@@ -35,6 +41,24 @@
 - Self-contained: bundles every python module it needs. No pip, no internet
   access required at install or boot.
 </CHANGES>
+
+<!-- pre-install: remove any previously-installed version first, so an update never
+     leaves the old package registered or its files orphaned. Our date-based package
+     names carry no Slackware build number, so upgradepkg does not reliably match the
+     old package as the same one to replace - it would install alongside it. Removing
+     first guarantees a clean single install. On a fresh boot the glob matches nothing,
+     so this is a harmless no-op there. -->
+<FILE Run="/bin/bash">
+<INLINE>
+if [ -f /var/run/corsairpsucenter-fand.pid ]; then
+  kill "$(cat /var/run/corsairpsucenter-fand.pid)" 2&gt;/dev/null
+  rm -f /var/run/corsairpsucenter-fand.pid
+fi
+for pkg in /var/lib/pkgtools/packages/&name;-*; do
+  [ -e "$pkg" ] &amp;&amp; removepkg "$(basename "$pkg")" &gt;/dev/null 2&gt;&amp;1
+done
+</INLINE>
+</FILE>
 
 <!-- download + install the package (checksum verified) -->
 <FILE Name="&plugdir;/&name;-&version;-x86_64.txz" Run="upgradepkg --install-new">
@@ -89,7 +113,8 @@ if [ -n "$HW" ]; then
   HID=$(grep -o 'HID_ID=[0-9A-Fa-f]*:[0-9A-Fa-f]*:[0-9A-Fa-f]*' "$HW/device/uevent" 2&gt;/dev/null)
   VID=$(echo "$HID" | cut -d: -f2); PID=$(echo "$HID" | cut -d: -f3)
   if [ -n "$VID" ]; then
-    python3 -m liquidctl --vendor 0x$(printf '%04x' $((16#$VID))) \
+    PY=/usr/local/emhttp/plugins/&name;/py/bin/python3; [ -x "$PY" ] || PY=python3
+    "$PY" -m liquidctl --vendor 0x$(printf '%04x' $((16#$VID))) \
       --product 0x$(printf '%04x' $((16#$PID))) initialize --direct-access &gt;/dev/null 2&gt;&amp;1
   fi
 fi
