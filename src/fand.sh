@@ -18,6 +18,7 @@ PIDFILE=/var/run/corsairpsucenter-fand.pid
 INTERVAL=10
 LOG=/var/log/corsairpsucenter.log
 MIN_DUTY=30      # liquidctl clamps below this anyway
+PYBIN=/usr/local/emhttp/plugins/corsairpsucenter/py/bin/python3; [ -x "$PYBIN" ] || PYBIN=python3
 MAX_LOG_BYTES=262144
 
 # Single instance. Identify the previous copy precisely via the pidfile and
@@ -137,7 +138,7 @@ while true; do
     if [ "$DUTY" -ne "$LAST_DUTY" ]; then
         RC=1
         for attempt in 1 2 3 4 5; do
-            OUT=$(python3 -m liquidctl $SEL set fan speed "$DUTY" 2>&1)
+            OUT=$("$PYBIN" -m liquidctl $SEL set fan speed "$DUTY" 2>&1)
             RC=$?
             [ $RC -eq 0 ] && break
             echo "$OUT" | grep -qi "possible conflict" || break
