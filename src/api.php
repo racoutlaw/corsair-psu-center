@@ -136,7 +136,9 @@ function liquidctl($args, $psu, $maxAttempts = 5) {
     if ($psu && $psu['vendor'] !== null && $psu['product'] !== null) {
         $sel = sprintf('--vendor 0x%04x --product 0x%04x', $psu['vendor'], $psu['product']);
     }
-    $base = "python3 -m liquidctl $sel";
+    $py = is_executable('/usr/local/emhttp/plugins/corsairpsucenter/py/bin/python3')
+        ? '/usr/local/emhttp/plugins/corsairpsucenter/py/bin/python3' : 'python3';
+    $base = "$py -m liquidctl $sel";
     $text = '';
     for ($i = 1; $i <= $maxAttempts; $i++) {
         $out = [];
