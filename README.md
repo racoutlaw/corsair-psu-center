@@ -64,9 +64,11 @@ are hidden, because those need model-specific coefficients — the plugin will s
 Unraid → **Plugins** → **Install Plugin**, paste the URL of `corsairpsucenter.plg`,
 and click Install. Then open the **CorsairPSUCenter** tab in the top menu.
 
-The package is self-contained: it bundles every Python module it needs. No `pip`, no
-internet access at install or boot, and nothing to configure by hand. Unraid re-runs
-the `.plg` on each boot, so it survives reboots on its own.
+The package is **fully self-contained** — it bundles its own Python 3.11 runtime *and*
+every module it needs, so fan control works even on Unraid systems that have no Python
+installed (Unraid does not ship Python by default). No `pip`, no internet access at
+install or boot, and nothing to configure by hand. Unraid re-runs the `.plg` on each
+boot, so it survives reboots on its own.
 
 To remove it, use the Plugins page. Uninstall stops the fan service, hands the fan
 back to the PSU firmware, and removes everything it installed.
