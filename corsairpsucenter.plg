@@ -2,12 +2,12 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "corsairpsucenter">
 <!ENTITY author    "racoutlaw">
-<!ENTITY version   "2026.08.09">
+<!ENTITY version   "2026.08.10">
 <!ENTITY launch    "CorsairPSUCenter">
 <!ENTITY gitURL    "https://raw.githubusercontent.com/racoutlaw/corsair-psu-center/main">
 <!ENTITY pluginURL "&gitURL;/&name;.plg">
 <!ENTITY source    "&gitURL;/archive/&name;-&version;-x86_64.txz">
-<!ENTITY md5       "951117b827d1c00527fdc1f8bd72450b">
+<!ENTITY md5       "1c78a7a7642aa9f69a3586b61bb04eeb">
 <!ENTITY plugdir   "/boot/config/plugins/&name;">
 ]>
 
@@ -21,6 +21,20 @@
         support="https://forums.unraid.net/topic/200056-plugin-corsair-psu-center-icue-style-dashboard-and-fan-control-for-corsair-hxirmi-psus/">
 
 <CHANGES>
+###2026.08.10
+- New: energy usage + cost tracking. New dashboard tiles show power used and the
+  cost for today / this week / month / year / lifetime, with a field for your
+  electricity rate. A lightweight background collector integrates the PSU's
+  input power into kWh; data persists on the flash across reboots and is kept
+  crash-safe with atomic checkpoints (kind to the USB stick - it writes only
+  every few minutes, while the on-screen number updates live from RAM).
+- New: manual mains-voltage control (Auto / 115V / 230V) in the header. Some
+  units (e.g. the HX1000i 2022 revision) report input voltage at about double
+  the real value over their USB interface; if yours reads ~230V on a 115V outlet
+  (or the reverse), pin your real mains here so the input-voltage readout and the
+  efficiency / power-in estimates stay correct. Auto (the default) trusts the
+  PSU, so existing setups are unchanged.
+- Tidied the energy Reset tile layout.
 ###2026.08.09
 - Fan control now works on Unraid systems with no Python installed. The plugin
   bundles its own Python 3.11 runtime, so liquidctl no longer needs a system
@@ -53,6 +67,10 @@
 if [ -f /var/run/corsairpsucenter-fand.pid ]; then
   kill "$(cat /var/run/corsairpsucenter-fand.pid)" 2&gt;/dev/null
   rm -f /var/run/corsairpsucenter-fand.pid
+fi
+if [ -f /var/run/corsairpsucenter-energyd.pid ]; then
+  kill "$(cat /var/run/corsairpsucenter-energyd.pid)" 2&gt;/dev/null
+  rm -f /var/run/corsairpsucenter-energyd.pid
 fi
 for pkg in /var/lib/pkgtools/packages/&name;-*; do
   [ -e "$pkg" ] &amp;&amp; removepkg "$(basename "$pkg")" &gt;/dev/null 2&gt;&amp;1
@@ -88,6 +106,11 @@ if [ -f "$CFG" ] &amp;&amp; grep -q 'mode="curve"' "$CFG"; then
   setsid /usr/local/emhttp/plugins/&name;/fand.sh &gt;/dev/null 2&gt;&amp;1 &lt; /dev/null &amp;
 fi
 
+# Start the energy collector. It runs independently of fan mode (energy must
+# accrue no matter how the fan is being driven), reads sysfs only - no USB, no
+# python - and self-guards against duplicate instances.
+setsid /usr/bin/php /usr/local/emhttp/plugins/&name;/energyd.php &gt;/dev/null 2&gt;&amp;1 &lt; /dev/null &amp;
+
 echo ""
 echo "-----------------------------------------------------------"
 echo " Corsair PSU Center &version; installed"
@@ -104,6 +127,11 @@ echo ""
 if [ -f /var/run/corsairpsucenter-fand.pid ]; then
   kill "$(cat /var/run/corsairpsucenter-fand.pid)" 2&gt;/dev/null
   rm -f /var/run/corsairpsucenter-fand.pid
+fi
+# stop the energy collector
+if [ -f /var/run/corsairpsucenter-energyd.pid ]; then
+  kill "$(cat /var/run/corsairpsucenter-energyd.pid)" 2&gt;/dev/null
+  rm -f /var/run/corsairpsucenter-energyd.pid
 fi
 HW=""
 for h in /sys/class/hwmon/hwmon*; do
