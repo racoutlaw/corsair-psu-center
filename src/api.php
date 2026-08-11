@@ -12,107 +12,22 @@
  * The PSU model is detected at runtime from the HID product id in sysfs, so
  * this works on any corsair-psu supported unit - nothing is hardcoded to one
  * model.
+ *
+ * Shared PSU table + sysfs helpers + input-power/energy math live in lib.php,
+ * which the energy collector daemon (energyd.php) also uses.
  */
 
 header('Content-Type: application/json');
 
-define('CFG_DIR',  '/boot/config/plugins/corsairpsucenter');
-define('CFG_FILE', CFG_DIR . '/settings.cfg');
+require_once __DIR__ . '/lib.php';   // CFG_DIR/CFG_FILE, PSU_MODELS, hwmon_path(), detect_psu(), rd(), input_power(), energy_*()
+
 define('PID_FILE', '/var/run/corsairpsucenter-fand.pid');
 define('DAEMON',   '/usr/local/emhttp/plugins/corsairpsucenter/fand.sh');
-
-/*
- * Known Corsair digital PSUs, keyed by USB HID product id (vendor is always
- * 0x1b1c). fpowin115/fpowin230 are quadratic fits mapping output power ->
- * input power; they are model specific and come from liquidctl's
- * corsair_hid_psu driver, which sources them from measured efficiency data.
- * efficiency = output / input * 100.
- */
-const PSU_MODELS = [
-    0x1c05 => ['name' => 'Corsair HX750i',
-               'i115' => [0.00013153276902318052, 1.0118732314945875,  9.783796618886313],
-               'i230' => [9.268856467314546e-05,  1.0183515407387007,  8.279822175342481]],
-    0x1c06 => ['name' => 'Corsair HX850i',
-               'i115' => [0.00011552923724840388, 1.0111311876704099, 12.015296651918918],
-               'i230' => [8.126644224872423e-05,  1.0176256272095185, 10.290640442373850]],
-    0x1c07 => ['name' => 'Corsair HX1000i',
-               'i115' => [9.48609754417109e-05,   1.0170509865269720, 11.619826520447452],
-               'i230' => [9.649987544008507e-05,  1.0018241767296636, 12.759957859756842]],
-    0x1c08 => ['name' => 'Corsair HX1200i',
-               'i115' => [6.244705156199815e-05,  1.0234738310580973, 15.293509559389241],
-               'i230' => [5.9413179794350966e-05, 1.0023670927127724, 15.886126793547152]],
-    0x1c23 => ['name' => 'Corsair HX1200i ATX 3.1',
-               'i115' => [9.930197967499293e-05,  1.003634953854399,  13.956713659543981],
-               'i230' => [4.716701557627399e-05,  1.031689131040792,   8.562560345390088]],
-    0x1c27 => ['name' => 'Corsair HX1200i ATX 3.1',
-               'i115' => [8.701178559061476e-05,  1.0119502460041445, 12.725770701505295],
-               'i230' => [3.4692421780176756e-05, 1.0391630676290817,  7.429785098514605]],
-    0x1c0a => ['name' => 'Corsair RM650i',
-               'i115' => [0.00017323493381072683, 1.0047044721686030, 12.376592422281606],
-               'i230' => [0.00012413136310310370, 1.0284317478987164,  9.465259079360674]],
-    0x1c0b => ['name' => 'Corsair RM750i',
-               'i115' => [0.00015013694263596336, 1.0047044721686027, 14.280683564171110],
-               'i230' => [0.00010460621468919797, 1.0173089573727216, 11.495900706372142]],
-    0x1c0c => ['name' => 'Corsair RM850i',
-               'i115' => [0.00012280002467981107, 1.0159421430340847, 13.555472968718759],
-               'i230' => [8.816054254801031e-05,  1.0234738318592156, 10.832902491655597]],
-    0x1c0d => ['name' => 'Corsair RM1000i',
-               'i115' => [0.00010018433053123574, 1.0272313660072225, 14.092187353321624],
-               'i230' => [8.600634771656125e-05,  1.0289245073649413, 13.701515390258626]],
-    0x1c1e => ['name' => 'Corsair HX1000i (2022)',
-               'i115' => [0.00012038623467957958, 0.9899868099948035, 13.125601514017152],
-               'i230' => [8.725695209710315e-05,  1.0017598021499974,  9.789546063300154]],
-    0x1c1f => ['name' => 'Corsair HX1500i',
-               'i115' => [6.605968230747892e-05,  1.0125991461405333, 17.96728350708451],
-               'i230' => [4.634428233657273e-05,  1.0183515407387007, 16.559644350684962]],
-];
-
-function hwmon_path() {
-    foreach (glob('/sys/class/hwmon/hwmon*') as $h) {
-        $n = @trim(file_get_contents("$h/name"));
-        if ($n === 'corsairpsu') return $h;
-    }
-    return null;
-}
-
-/*
- * Identify the PSU straight from sysfs - no liquidctl call, so this is cheap
- * enough to run on every poll. uevent carries e.g.
- *   HID_ID=0003:00001B1C:00001C07
- */
-function detect_psu($H) {
-    $vendor = null; $product = null;
-    $uevent = @file_get_contents("$H/device/uevent");
-    if ($uevent && preg_match('/HID_ID=[0-9A-Fa-f]+:([0-9A-Fa-f]+):([0-9A-Fa-f]+)/', $uevent, $m)) {
-        $vendor  = hexdec($m[1]);
-        $product = hexdec($m[2]);
-    }
-    $known = ($product !== null && isset(PSU_MODELS[$product])) ? PSU_MODELS[$product] : null;
-    $name  = $known ? $known['name'] : 'Corsair PSU';
-
-    // Wattage is carried in the model name (HX750i -> 750). Derive it rather
-    // than keeping a second table in sync.
-    $capacity = null;
-    if (preg_match('/(\d{3,4})/', $name, $m)) $capacity = intval($m[1]);
-
-    return [
-        'vendor'   => $vendor,
-        'product'  => $product,
-        'name'     => $name,
-        'capacity' => $capacity,
-        'coeffs'   => $known,
-        'known'    => $known !== null,
-    ];
-}
-
-function rd($path, $div = 1.0) {
-    $v = @file_get_contents($path);
-    if ($v === false) return null;
-    return floatval(trim($v)) / $div;
-}
+define('ENERGYD',  '/usr/local/emhttp/plugins/corsairpsucenter/energyd.php');
 
 function read_config() {
-    $def = ['mode' => 'auto', 'fixed' => 40, 'curve' => '20,30 40,35 55,55 70,80 85,100', 'ocp' => 'unknown'];
+    $def = ['mode' => 'auto', 'fixed' => 40, 'curve' => '20,30 40,35 55,55 70,80 85,100',
+            'ocp' => 'unknown', 'rate' => 0, 'currency' => '$', 'mains' => 'auto'];
     if (!file_exists(CFG_FILE)) return $def;
     $c = @parse_ini_file(CFG_FILE);
     return is_array($c) ? array_merge($def, $c) : $def;
@@ -176,13 +91,31 @@ function daemon_start() {
     usleep(400000);
 }
 
+/*
+ * The energy collector runs independently of the fan daemon (it must accrue in
+ * every fan mode). It self-guards against duplicates, so calling this when it
+ * is already up is a no-op.
+ */
+function energyd_start() {
+    if (energyd_running()) return;
+    @exec('setsid /usr/bin/php ' . ENERGYD . ' >/dev/null 2>&1 < /dev/null &');
+    usleep(300000);
+}
+
+function energyd_stop() {
+    if (!file_exists(CPC_EPID)) return;
+    $pid = trim(@file_get_contents(CPC_EPID));
+    if ($pid !== '') { @exec("kill $pid 2>/dev/null"); usleep(400000); }
+}
+
 function get_status() {
     $H = hwmon_path();
     if (!$H) return ['connected' => false];
 
     $psu = detect_psu($H);
 
-    $vin   = rd("$H/in0_input", 1000);
+    $vinRaw = rd("$H/in0_input", 1000);
+    $vin    = effective_vin($vinRaw);   // honours the manual 115/230 override
     $v12   = rd("$H/in1_input", 1000);
     $v5    = rd("$H/in2_input", 1000);
     $v33   = rd("$H/in3_input", 1000);
@@ -226,7 +159,9 @@ function get_status() {
         'power_in'   => $pIn,
         'power_out'  => round($pTot, 1),
         'load_pct'   => $cap ? round($pTot / $cap * 100, 1) : null,
-        'v_in'       => round($vin, 1),
+        'v_in'       => $vin    !== null ? round($vin, 1)    : null,
+        'v_in_sensor'=> $vinRaw !== null ? round($vinRaw, 1) : null,
+        'mains'      => $cfg['mains'],
         'v_12'       => round($v12, 2),  'c_12' => round($c12, 2), 'p_12' => round($p12, 1),
         'v_5'        => round($v5, 2),   'c_5'  => round($c5, 2),  'p_5'  => round($p5, 1),
         'v_33'       => round($v33, 2),  'c_33' => round($c33, 2), 'p_33' => round($p33, 1),
@@ -246,6 +181,42 @@ switch ($action) {
 
     case 'status':
         echo json_encode(get_status());
+        break;
+
+    case 'energy':
+        energyd_start();                    // revive the collector if it ever died
+        $cfg  = read_config();
+        $rate = isset($cfg['rate']) ? floatval($cfg['rate']) : 0.0;
+        $cur  = isset($cfg['currency']) ? $cfg['currency'] : '$';
+        echo json_encode(energy_summary($rate, $cur));
+        break;
+
+    case 'setrate':
+        $cfg = read_config();
+        if (isset($_REQUEST['rate']))     $cfg['rate'] = max(0, floatval($_REQUEST['rate']));
+        if (isset($_REQUEST['currency'])) {
+            $cur = preg_replace('/[^\p{L}\p{Sc}.\s]/u', '', (string)$_REQUEST['currency']);
+            $cfg['currency'] = ($cur === '') ? '$' : mb_substr($cur, 0, 4);
+        }
+        write_config($cfg);
+        echo json_encode(['ok' => true, 'energy' => energy_summary(floatval($cfg['rate']), $cfg['currency'] ?? '$')]);
+        break;
+
+    case 'resetenergy':
+        energyd_stop();
+        @unlink(CPC_STATE);
+        @unlink(CPC_LIVE);
+        @unlink(CPC_DAILY);
+        energyd_start();
+        echo json_encode(['ok' => true]);
+        break;
+
+    case 'setmains':
+        $cfg = read_config();
+        $m = $_REQUEST['mains'] ?? 'auto';
+        $cfg['mains'] = in_array($m, ['auto', '115', '230'], true) ? $m : 'auto';
+        write_config($cfg);
+        echo json_encode(['ok' => true, 'status' => get_status()]);
         break;
 
     case 'setocp':
