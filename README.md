@@ -36,6 +36,25 @@ costs no USB traffic and cannot collide with anything else talking to the PSU:
 protection. Single rail uses one combined threshold for the whole +12V output, which
 means fewer nuisance trips when several drives spin up at once.
 
+**Energy & cost tracking**
+
+- Watt-hours used and running cost for **today, this week, this month, this year, and
+  lifetime**, shown as tiles alongside the live sensors
+- Enter your electricity rate (per kWh) and each tile shows the cost as well as the kWh
+- A lightweight background collector integrates the PSU's input power over time. It
+  reads sysfs only — no USB, no Python — and runs in every fan mode
+- Totals persist on the boot flash and survive reboots *and* plugin updates. Writes are
+  batched (every few minutes) and atomic, so the USB stick isn't worn down and a power
+  loss can't corrupt the saved total; the on-screen figure updates live from RAM
+
+**Mains voltage (Auto / 115V / 230V)** — efficiency and input power are interpolated for
+your mains voltage, normally read straight from the PSU. A few units — notably the
+**HX1000i (2022 revision)** — report input voltage at about double the real value over
+their USB interface. If yours shows ~230V on a 115V outlet (or the reverse), pin your
+real mains from the header control and the input-voltage readout plus the efficiency and
+power-in figures stay correct. **Auto** (the default) trusts the PSU, so existing setups
+are unaffected.
+
 **Adjustable text size** — the whole UI scales from one control, remembered per browser.
 
 ---
@@ -90,7 +109,9 @@ Two deliberately separate paths:
 **Efficiency and input power are estimates.** The PSU does not report input power, so
 it is derived from a per-model quadratic fit of output power, interpolated for mains
 voltage. The coefficients come from
-[liquidctl](https://github.com/liquidctl/liquidctl)'s `corsair_hid_psu` driver.
+[liquidctl](https://github.com/liquidctl/liquidctl)'s `corsair_hid_psu` driver. If your
+PSU misreports its input voltage, the **Mains voltage** control (Auto / 115V / 230V) in
+the header lets you pin the real value so these estimates stay accurate.
 
 ### Why a background service for the fan curve
 
@@ -128,6 +149,8 @@ corsairpsucenter.plg     the installer
 archive/                 the .txz package + its md5
 src/                     readable sources (also inside the package)
   api.php                telemetry + control endpoint
+  lib.php                shared PSU table, sysfs + energy helpers
+  energyd.php            background energy / kWh collector
   fand.sh                fan curve daemon
   CorsairPSUCenter.page  the UI
 ca_profile.xml           Community Applications repository profile
