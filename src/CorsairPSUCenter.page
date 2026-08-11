@@ -19,6 +19,9 @@ Icon="corsairpsucenter.png"
 .cpc-top .spacer { flex:1; }
 .cpc-top .big { font-size:1.9em; font-weight:600; color:#f0c040; line-height:1.1; }
 .cpc-top .sub { font-size:.8em; color:#8a9099; text-transform:uppercase; letter-spacing:1px; }
+.cpc-mains { display:flex; align-items:center; gap:.4em; margin-left:1.4em; }
+.cpc-mains .cpc-mains-lbl { font-size:.7em; text-transform:uppercase; letter-spacing:1.2px; color:#8a9099; margin-right:.15em; }
+.cpc-mains .cpc-btn.cpc-mini { margin:0; padding:.32em .62em; font-size:.78em; }
 .cpc-zoom button { background:#2a2f38; color:#e8eaed; border:1px solid #39404b; border-radius:4px;
                    width:2.1em; height:2.1em; cursor:pointer; font-size:1em; margin-left:.25em; }
 .cpc-zoom button:hover { background:#39404b; }
@@ -63,6 +66,12 @@ Icon="corsairpsucenter.png"
   <div class="cpc-top">
     <span class="cpc-dot" id="dot"></span>
     <span class="name" id="devname">CORSAIR HX1000i</span>
+    <div class="cpc-mains" title="Leave on Auto to read input voltage from the PSU. A few units (e.g. the HX1000i 2022 revision) misreport input voltage at about double the real value; if yours shows ~230 V on a 115 V outlet (or the reverse), pin your real mains here so the efficiency and power-in estimates stay correct.">
+      <span class="cpc-mains-lbl">Mains</span>
+      <button class="cpc-btn cpc-mini" id="mainsAuto">Auto</button>
+      <button class="cpc-btn cpc-mini" id="mains115">115V</button>
+      <button class="cpc-btn cpc-mini" id="mains230">230V</button>
+    </div>
     <span class="spacer"></span>
     <div class="cpc-zoom" title="Text size">
       <button id="zOut">&minus;</button><button id="zRst">A</button><button id="zIn">+</button>
@@ -166,6 +175,14 @@ const PRESETS = {
 const HIST = {}, MIN = {}, MAX = {};
 TILES.forEach(t => { HIST[t.k] = []; });
 
+// energy tiles (cumulative usage + cost) - appended into the same grid, so they
+// read as more tiles rather than a separate section.
+const ETILES = [
+  {k:'today', l:'Today'}, {k:'week', l:'This Week'}, {k:'month', l:'This Month'},
+  {k:'year', l:'This Year'}, {k:'lifetime', l:'Lifetime'}
+];
+let lastRate = 0, lastCur = '$';
+
 // build tiles
 const grid = document.getElementById('tiles');
 grid.innerHTML = TILES.map(t => `
@@ -179,6 +196,31 @@ grid.innerHTML = TILES.map(t => `
     </div>
     <div class="lbl">${t.l}</div>
   </div>`).join('');
+
+// append the energy tiles (same tile styling, no sparkline)
+grid.innerHTML += ETILES.map(t => `
+  <div class="tile etile">
+    <div class="vbox">
+      <div class="val" style="color:#f0c040"><span id="ek_${t.k}">--</span><span class="u">kWh</span></div>
+      <div class="mm"><span id="ec_${t.k}">--</span></div>
+    </div>
+    <div class="lbl">${t.l}</div>
+  </div>`).join('') + `
+  <div class="tile etile" id="rateTile" style="cursor:pointer" title="Set your electricity rate">
+    <div class="vbox">
+      <div class="val" style="color:#6fc26f"><span id="e_rate">--</span><span class="u">/kWh</span></div>
+      <div class="mm">click to set rate</div>
+    </div>
+    <div class="lbl">Rate</div>
+  </div>
+  <div class="tile etile" id="resetTile" style="cursor:pointer" title="Reset energy counters">
+    <div class="vbox">
+      <div class="val" style="color:#8a9099;font-size:1.15em"><span id="e_since">--</span></div>
+      <div class="mm">tracking since</div>
+      <div class="mm">click to reset</div>
+    </div>
+    <div class="lbl">Reset</div>
+  </div>`;
 
 function spark(k){
   const h = HIST[k]; if (h.length < 2) return;
@@ -203,6 +245,12 @@ function setModeButtons(m){
   document.getElementById('curveBox').style.display = (m==='curve') ? 'block':'none';
 }
 
+function setMainsButtons(m){
+  document.getElementById('mainsAuto').classList.toggle('active', m==='auto');
+  document.getElementById('mains115').classList.toggle('active', m==='115');
+  document.getElementById('mains230').classList.toggle('active', m==='230');
+}
+
 function refresh(){
   fetch(API+'?action=status').then(r=>r.json()).then(s=>{
     const dot = document.getElementById('dot');
@@ -220,6 +268,7 @@ function refresh(){
     document.getElementById('sMode').textContent   =
       s.fan_mode==='auto' ? 'Default' : (s.fan_mode==='fixed' ? 'Fixed '+s.fan_fixed+'%' : 'Custom curve');
     document.getElementById('sOcp').textContent    = s.ocp_mode;
+    setMainsButtons(s.mains||'auto');
 
     TILES.forEach(t=>{
       const v = s[t.k];
@@ -360,6 +409,46 @@ document.getElementById('ocpSingle').onclick = ()=>
 document.getElementById('ocpMulti').onclick = ()=>
   post({action:'setocp',mode:'multi'}).then(r=>{ msg(r.ok, r.ok?'OCP set to multi rail.':r.output); refresh(); });
 
+document.getElementById('mainsAuto').onclick = ()=>
+  post({action:'setmains',mains:'auto'}).then(r=>{ msg(r.ok, r.ok?'Mains voltage: Auto (read from PSU).':(r.output||'Failed.')); refresh(); });
+document.getElementById('mains115').onclick = ()=>
+  post({action:'setmains',mains:'115'}).then(r=>{ msg(r.ok, r.ok?'Mains voltage pinned to 115 V.':(r.output||'Failed.')); refresh(); });
+document.getElementById('mains230').onclick = ()=>
+  post({action:'setmains',mains:'230'}).then(r=>{ msg(r.ok, r.ok?'Mains voltage pinned to 230 V.':(r.output||'Failed.')); refresh(); });
+
+// ---- energy usage + cost ----
+function kwhFmt(v){ v = Number(v)||0; return v<10 ? v.toFixed(3) : (v<100 ? v.toFixed(2) : v.toFixed(1)); }
+function applyEnergy(e){
+  if (!e) return;
+  lastRate = e.rate || 0; lastCur = e.currency || '$';
+  ETILES.forEach(t=>{
+    const d = e[t.k] || {kwh:0, cost:0};
+    document.getElementById('ek_'+t.k).textContent = kwhFmt(d.kwh);
+    document.getElementById('ec_'+t.k).textContent = lastRate>0 ? (lastCur + Number(d.cost).toFixed(2)) : '—';
+  });
+  document.getElementById('e_rate').textContent = lastCur + Number(lastRate).toFixed(2);
+  const since = e.since ? new Date(e.since*1000) : null;
+  document.getElementById('e_since').textContent = since ? since.toLocaleDateString() : '--';
+}
+function refreshEnergy(){ fetch(API+'?action=energy').then(r=>r.json()).then(applyEnergy).catch(()=>{}); }
+document.getElementById('rateTile').onclick = ()=>{
+  const inp = prompt('Electricity rate per kWh (number only, e.g. 0.15):', lastRate ? String(lastRate) : '');
+  if (inp===null) return;
+  const r = parseFloat(inp);
+  if (isNaN(r) || r<0){ msg(false,'Enter a number like 0.15'); return; }
+  post({action:'setrate', rate:r}).then(resp=>{
+    if (resp && resp.ok){ applyEnergy(resp.energy); msg(true,'Electricity rate saved.'); }
+    else msg(false,'Could not save the rate.');
+  });
+};
+document.getElementById('resetTile').onclick = ()=>{
+  if (!confirm('Reset all energy counters (today, week, month, year, lifetime) to zero? This cannot be undone.')) return;
+  post({action:'resetenergy'}).then(resp=>{
+    if (resp && resp.ok){ msg(true,'Energy counters reset.'); setTimeout(refreshEnergy,700); }
+    else msg(false,'Reset failed.');
+  });
+};
+
 // ---- text size (persisted per browser) ----
 const app = document.getElementById('cpc');
 let scale = parseFloat(localStorage.getItem('cpcScale') || '1');
@@ -375,5 +464,7 @@ applyScale();
 
 refresh();
 setInterval(refresh, 2000);
+refreshEnergy();
+setInterval(refreshEnergy, 10000);
 })();
 </script>
