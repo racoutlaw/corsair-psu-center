@@ -2,7 +2,7 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "corsairpsucenter">
 <!ENTITY author    "racoutlaw">
-<!ENTITY version   "2026.08.10">
+<!ENTITY version   "2026.08.20">
 <!ENTITY launch    "CorsairPSUCenter">
 <!ENTITY gitURL    "https://raw.githubusercontent.com/racoutlaw/corsair-psu-center/main">
 <!ENTITY pluginURL "&gitURL;/&name;.plg">
@@ -21,6 +21,14 @@
         support="https://forums.unraid.net/topic/200056-plugin-corsair-psu-center-icue-style-dashboard-and-fan-control-for-corsair-hxirmi-psus/">
 
 <CHANGES>
+###2026.08.20
+- Fixed: a fresh install or reinstall could fail with "'/bin/bash' returned 1",
+  and the plugin could vanish after a reboot. The pre-install cleanup step
+  returned an error when there was no previous version to remove - which is the
+  normal state on a clean system and on every fresh boot - and Unraid treated
+  that as a fatal error, aborting the install before the package was registered.
+  Installs now complete reliably on a clean system and the plugin persists
+  across reboots. In-place upgrades were not affected.
 ###2026.08.10
 - New: energy usage + cost tracking. New dashboard tiles show power used and the
   cost for today / this week / month / year / lifetime, with a field for your
@@ -64,6 +72,12 @@
      so this is a harmless no-op there. -->
 <FILE Run="/bin/bash">
 <INLINE>
+# nullglob: on a fresh system or a fresh boot the package glob below matches
+# nothing. Without this, bash iterates once over the literal unmatched pattern,
+# [ -e ] returns 1, and because that is the LAST command in this script bash exits
+# 1 - which Unraid treats as a fatal plugin error and aborts the whole install
+# (the package is never registered, and the plugin fails to reappear after a reboot).
+shopt -s nullglob
 if [ -f /var/run/corsairpsucenter-fand.pid ]; then
   kill "$(cat /var/run/corsairpsucenter-fand.pid)" 2&gt;/dev/null
   rm -f /var/run/corsairpsucenter-fand.pid
@@ -75,6 +89,8 @@ fi
 for pkg in /var/lib/pkgtools/packages/&name;-*; do
   [ -e "$pkg" ] &amp;&amp; removepkg "$(basename "$pkg")" &gt;/dev/null 2&gt;&amp;1
 done
+# This block is best-effort cleanup only; never let its exit status abort the install.
+exit 0
 </INLINE>
 </FILE>
 
@@ -123,6 +139,7 @@ echo ""
 <!-- uninstall -->
 <FILE Run="/bin/bash" Method="remove">
 <INLINE>
+shopt -s nullglob
 # stop the fan curve service and hand the fan back to the PSU firmware
 if [ -f /var/run/corsairpsucenter-fand.pid ]; then
   kill "$(cat /var/run/corsairpsucenter-fand.pid)" 2&gt;/dev/null
