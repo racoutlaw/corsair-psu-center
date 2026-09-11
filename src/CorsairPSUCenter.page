@@ -33,12 +33,18 @@ Icon="corsairpsucenter.png"
                color:#9aa0a8; font-weight:600; }
 /* auto-fit means bigger scale => fewer, wider tiles automatically */
 .cpc-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(15.5em,1fr)); gap:.55em; }
-.tile { display:flex; background:#2a2f38; border-radius:4px; overflow:hidden; min-height:6em; }
-.tile .vbox { background:#22262e; padding:.65em .8em 0 .8em; width:52%; position:relative; display:flex;
+.tile { display:flex; background:#2a2f38; border-radius:4px; overflow:hidden; min-height:6.4em; }
+.tile .vbox { background:#22262e; padding:.65em .8em 0 .8em; width:58%; position:relative; display:flex;
               flex-direction:column; justify-content:flex-start; }
 .tile .val { font-size:1.85em; font-weight:600; line-height:1.1; white-space:nowrap; }
 .tile .val .u { font-size:.5em; font-weight:400; color:#8a9099; margin-left:.3em; }
-.tile .mm { font-size:.78em; color:#7a8089; margin-top:.2em; white-space:nowrap; }
+/* the small secondary numbers (min/max on sensor tiles, cost on energy tiles):
+   one uniform, readable size across every tile. Kept just under the main value
+   and non-wrapping; the min/max pair is the width-limiting case. */
+.tile .mm { font-size:1.05em; color:#9aa0a8; margin-top:.28em; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.tile .eval2 { font-size:1.05em; font-weight:600; color:#6fc26f; margin-top:.24em; line-height:1.15;
+               white-space:nowrap; font-variant-numeric:tabular-nums; }
+.tile .eval2.zero { color:#7a8089; font-weight:400; }
 .tile .spark { position:absolute; left:0; bottom:0; width:100%; height:1.7em; display:block; }
 .tile .lbl { padding:.65em .8em; font-size:1em; color:#d2d6dc; display:flex; align-items:center; }
 .cpc-btn { background:#2a2f38; color:#e8eaed; border:1px solid #39404b; border-radius:4px;
@@ -60,6 +66,34 @@ Icon="corsairpsucenter.png"
 .cpc-msg.ok { background:#1e3a24; color:#8fd18f; display:block; }
 .cpc-msg.err { background:#3a1e1e; color:#e08585; display:block; }
 .cpc-slider { width:100%; margin:.5em 0; }
+/* energy history - built from divs, NOT a <table>: Unraid's global table theme
+   forces a light background that hid the light text. */
+.cpc-hist { font-size:.95em; }
+.cpc-hrow { display:flex; align-items:center; padding:.5em .25em; border-bottom:1px solid #23272f; }
+.cpc-hrow:last-child { border-bottom:none; }
+.cpc-hhead { border-bottom:1px solid #2a2f38; }
+.cpc-hc-label { flex:1; color:#d2d6dc; }
+.cpc-hc-num { width:8em; text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; color:#d2d6dc; }
+.cpc-hc-num.cost { color:#6fc26f; }
+.cpc-hhead .cpc-hc-label, .cpc-hhead .cpc-hc-num { color:#9aa0a8; font-size:.8em; font-weight:600;
+               text-transform:uppercase; letter-spacing:.6px; }
+.cpc-hrow.empty { color:#7c828b; justify-content:center; }
+.cpc-histfilter { margin-bottom:.7em; }
+/* pick any specific month / year */
+.cpc-pick { margin-bottom:1em; }
+.cpc-pickrow { display:flex; align-items:center; gap:.7em; margin-bottom:.55em; flex-wrap:wrap; }
+.cpc-pickrow > label { font-size:.72em; text-transform:uppercase; letter-spacing:.8px; color:#8a9099; width:3.4em; flex:none; }
+.cpc-select { background:#22262e; color:#e8eaed; border:1px solid #39404b; border-radius:4px;
+              padding:.4em .6em; font-size:.95em; cursor:pointer; min-width:11em; }
+.cpc-select:hover { border-color:#4a525f; }
+/* Unraid's theme has a select:focus rule that flips the box white; that hid the
+   light text while focused (right after picking). Pin dark on every state. */
+.cpc-select:focus, .cpc-select:focus-visible, .cpc-select:active {
+              background:#22262e !important; color:#e8eaed !important; outline:none; border-color:#f0c040; }
+.cpc-select option { background:#22262e; color:#e8eaed; }
+.cpc-pickres { font-size:1.2em; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.cpc-pickres .pk-k { color:#f0c040; }
+.cpc-pickres .pk-c { color:#6fc26f; margin-left:.55em; }
 </style>
 
 <div id="cpc">
@@ -115,6 +149,40 @@ Icon="corsairpsucenter.png"
 
     <div class="cpc-main">
       <div class="cpc-grid" id="tiles"></div>
+
+      <div class="cpc-card" id="histCard" style="margin-top:12px">
+        <h3>Energy History</h3>
+        <div class="cpc-pick">
+          <div class="cpc-pickrow">
+            <label>Month</label>
+            <select class="cpc-select" id="monthPick"></select>
+            <span class="cpc-pickres" id="monthPickRes">&mdash;</span>
+          </div>
+          <div class="cpc-pickrow">
+            <label>Year</label>
+            <select class="cpc-select" id="yearPick"></select>
+            <span class="cpc-pickres" id="yearPickRes">&mdash;</span>
+          </div>
+        </div>
+        <div class="cpc-histfilter" id="histFilter">
+          <button class="cpc-btn" data-n="1">1 Month</button>
+          <button class="cpc-btn" data-n="3">3 Months</button>
+          <button class="cpc-btn" data-n="6">6 Months</button>
+          <button class="cpc-btn" data-n="12">12 Months</button>
+          <button class="cpc-btn active" data-n="0">All</button>
+        </div>
+        <div class="cpc-hist" id="histMonths">
+          <div class="cpc-hrow cpc-hhead"><span class="cpc-hc-label">Month</span><span class="cpc-hc-num">Energy</span><span class="cpc-hc-num">Cost</span></div>
+          <div id="histBodyM"></div>
+        </div>
+        <h3 style="margin-top:1.1em">By Year</h3>
+        <div class="cpc-hist" id="histYears">
+          <div class="cpc-hrow cpc-hhead"><span class="cpc-hc-label">Year</span><span class="cpc-hc-num">Energy</span><span class="cpc-hc-num">Cost</span></div>
+          <div id="histBodyY"></div>
+        </div>
+        <div class="cpc-note">Past months are kept for good (a few bytes each). The current month fills in
+        live and drops into the list once it rolls over. Days the server was off are not counted.</div>
+      </div>
 
       <div class="cpc-card" style="margin-top:12px">
         <h3>Fan Curve</h3>
@@ -179,9 +247,11 @@ TILES.forEach(t => { HIST[t.k] = []; });
 // read as more tiles rather than a separate section.
 const ETILES = [
   {k:'today', l:'Today'}, {k:'week', l:'This Week'}, {k:'month', l:'This Month'},
-  {k:'year', l:'This Year'}, {k:'lifetime', l:'Lifetime'}
+  {k:'last_month', l:'Last Month'}, {k:'year', l:'This Year'}, {k:'lifetime', l:'Lifetime'}
 ];
 let lastRate = 0, lastCur = '$';
+let histMonths = [], histYears = [], histN = 0;
+let pickYm = null, pickYear = null, pickSig = '';
 
 // build tiles
 const grid = document.getElementById('tiles');
@@ -202,7 +272,7 @@ grid.innerHTML += ETILES.map(t => `
   <div class="tile etile">
     <div class="vbox">
       <div class="val" style="color:#f0c040"><span id="ek_${t.k}">--</span><span class="u">kWh</span></div>
-      <div class="mm"><span id="ec_${t.k}">--</span></div>
+      <div class="eval2"><span id="ec_${t.k}">--</span></div>
     </div>
     <div class="lbl">${t.l}</div>
   </div>`).join('') + `
@@ -424,12 +494,71 @@ function applyEnergy(e){
   ETILES.forEach(t=>{
     const d = e[t.k] || {kwh:0, cost:0};
     document.getElementById('ek_'+t.k).textContent = kwhFmt(d.kwh);
-    document.getElementById('ec_'+t.k).textContent = lastRate>0 ? (lastCur + Number(d.cost).toFixed(2)) : '—';
+    const ce = document.getElementById('ec_'+t.k);
+    if (lastRate>0){ ce.textContent = lastCur + Number(d.cost).toFixed(2); ce.parentElement.classList.remove('zero'); }
+    else { ce.textContent = '—'; ce.parentElement.classList.add('zero'); }
   });
   document.getElementById('e_rate').textContent = lastCur + Number(lastRate).toFixed(2);
   const since = e.since ? new Date(e.since*1000) : null;
   document.getElementById('e_since').textContent = since ? since.toLocaleDateString() : '--';
+  histMonths = e.months || []; histYears = e.years || []; renderHist(); populatePickers();
 }
+function costCell(v){ return lastRate>0 ? (lastCur + Number(v).toFixed(2)) : '—'; }
+function renderHist(){
+  const mtb = document.getElementById('histBodyM'); if (!mtb) return;
+  const rows = histN>0 ? histMonths.slice(0, histN) : histMonths;
+  mtb.innerHTML = rows.length ? rows.map(m=>
+    `<div class="cpc-hrow"><span class="cpc-hc-label">${m.label}</span><span class="cpc-hc-num">${kwhFmt(m.kwh)} kWh</span><span class="cpc-hc-num cost">${costCell(m.cost)}</span></div>`).join('')
+    : `<div class="cpc-hrow empty">No completed months yet — your first shows up after this month ends.</div>`;
+  const ytb = document.getElementById('histBodyY');
+  ytb.innerHTML = histYears.length ? histYears.map(y=>
+    `<div class="cpc-hrow"><span class="cpc-hc-label">${y.year}</span><span class="cpc-hc-num">${kwhFmt(y.kwh)} kWh</span><span class="cpc-hc-num cost">${costCell(y.cost)}</span></div>`).join('')
+    : `<div class="cpc-hrow empty">—</div>`;
+}
+document.querySelectorAll('#histFilter .cpc-btn').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('#histFilter .cpc-btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    histN = parseInt(b.dataset.n, 10) || 0;
+    renderHist();
+  };
+});
+
+// ---- pick any specific month / year ----
+function pickResHtml(kwh, cost){
+  let h = '<span class="pk-k">'+kwhFmt(kwh)+' kWh</span>';
+  if (lastRate>0) h += '<span class="pk-c">'+lastCur+Number(cost).toFixed(2)+'</span>';
+  return h;
+}
+function updateMonthPickRes(){
+  const el = document.getElementById('monthPickRes'); if (!el) return;
+  const m = histMonths.find(x=>x.ym===pickYm);
+  el.innerHTML = m ? pickResHtml(m.kwh, m.cost) : '—';
+}
+function updateYearPickRes(){
+  const el = document.getElementById('yearPickRes'); if (!el) return;
+  const y = histYears.find(x=>String(x.year)===String(pickYear));
+  el.innerHTML = y ? pickResHtml(y.kwh, y.cost) : '—';
+}
+function populatePickers(){
+  const ms = document.getElementById('monthPick'), ys = document.getElementById('yearPick');
+  if (!ms || !ys) return;
+  if (pickYm===null   || !histMonths.some(m=>m.ym===pickYm))                pickYm   = histMonths.length ? histMonths[0].ym  : null;
+  if (pickYear===null || !histYears.some(y=>String(y.year)===String(pickYear))) pickYear = histYears.length  ? histYears[0].year : null;
+  // only rebuild the option lists when the set of months/years actually changes,
+  // so a refresh never yanks an open dropdown shut - but keep the readouts live.
+  const sig = histMonths.map(m=>m.ym).join(',') + '|' + histYears.map(y=>y.year).join(',');
+  if (sig !== pickSig){
+    ms.innerHTML = histMonths.length ? histMonths.map(m=>'<option value="'+m.ym+'">'+m.label+'</option>').join('') : '<option value="">— no data —</option>';
+    ys.innerHTML = histYears.length  ? histYears.map(y=>'<option value="'+y.year+'">'+y.year+'</option>').join('')   : '<option value="">— no data —</option>';
+    pickSig = sig;
+  }
+  if (pickYm!==null)   ms.value = pickYm;
+  if (pickYear!==null) ys.value = pickYear;
+  updateMonthPickRes(); updateYearPickRes();
+}
+document.getElementById('monthPick').onchange = e=>{ pickYm = e.target.value; updateMonthPickRes(); };
+document.getElementById('yearPick').onchange  = e=>{ pickYear = e.target.value; updateYearPickRes(); };
 function refreshEnergy(){ fetch(API+'?action=energy').then(r=>r.json()).then(applyEnergy).catch(()=>{}); }
 document.getElementById('rateTile').onclick = ()=>{
   const inp = prompt('Electricity rate per kWh (number only, e.g. 0.15):', lastRate ? String(lastRate) : '');
