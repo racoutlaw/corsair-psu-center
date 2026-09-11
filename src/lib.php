@@ -211,12 +211,44 @@ function energy_summary($rate = 0.0, $currency = '$') {
         return ['kwh' => round($kwh, 3), 'cost' => round($kwh * $rate, 2)];
     };
 
+    // ---- monthly + yearly history: roll the per-day buckets up by calendar
+    // month and year. Tiny (a few bytes per month) and kept for as long as the
+    // daily data exists, so a month is never lost when it rolls over. Gaps from
+    // downtime simply are not counted - we never invent energy we did not measure.
+    $byMonth = []; $byYear = [];
+    foreach ($daily as $d => $wh) {
+        $mkey = substr($d, 0, 7);   // YYYY-MM
+        $ykey = substr($d, 0, 4);   // YYYY
+        $byMonth[$mkey] = (isset($byMonth[$mkey]) ? $byMonth[$mkey] : 0) + $wh;
+        $byYear[$ykey]  = (isset($byYear[$ykey])  ? $byYear[$ykey]  : 0) + $wh;
+    }
+    krsort($byMonth); krsort($byYear);   // newest first
+    $lmKey = date('Y-m', strtotime(date('Y-m-01') . ' -1 month'));
+    $wh_lastmonth = isset($byMonth[$lmKey]) ? $byMonth[$lmKey] : 0.0;
+
+    $months = [];
+    foreach ($byMonth as $k => $wh) {
+        $row = $mk($wh);
+        $row['ym']    = $k;
+        $row['label'] = date('F Y', strtotime($k . '-01'));
+        $months[] = $row;
+    }
+    $years = [];
+    foreach ($byYear as $k => $wh) {
+        $row = $mk($wh);
+        $row['year'] = $k;
+        $years[] = $row;
+    }
+
     return [
-        'today'    => $mk($wh_today),
-        'week'     => $mk($wh_week),
-        'month'    => $mk($wh_month),
-        'year'     => $mk($wh_year),
-        'lifetime' => $mk((float)$st['total_wh']),
+        'today'      => $mk($wh_today),
+        'week'       => $mk($wh_week),
+        'month'      => $mk($wh_month),
+        'year'       => $mk($wh_year),
+        'lifetime'   => $mk((float)$st['total_wh']),
+        'last_month' => $mk($wh_lastmonth),
+        'months'     => $months,
+        'years'      => $years,
         'rate'     => (float)$rate,
         'currency' => $currency,
         'since'    => $st['since'] ? intval($st['since']) : null,
