@@ -2,12 +2,12 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "corsairpsucenter">
 <!ENTITY author    "racoutlaw">
-<!ENTITY version   "2026.08.20">
+<!ENTITY version   "2026.09.10">
 <!ENTITY launch    "CorsairPSUCenter">
 <!ENTITY gitURL    "https://raw.githubusercontent.com/racoutlaw/corsair-psu-center/main">
 <!ENTITY pluginURL "&gitURL;/&name;.plg">
 <!ENTITY source    "&gitURL;/archive/&name;-&version;-x86_64.txz">
-<!ENTITY md5       "1c78a7a7642aa9f69a3586b61bb04eeb">
+<!ENTITY md5       "a9675cb170fa69309dd2fcd2b02942e4">
 <!ENTITY plugdir   "/boot/config/plugins/&name;">
 ]>
 
@@ -21,6 +21,17 @@
         support="https://forums.unraid.net/topic/200056-plugin-corsair-psu-center-icue-style-dashboard-and-fan-control-for-corsair-hxirmi-psus/">
 
 <CHANGES>
+###2026.09.10
+- New: energy history. The dashboard now keeps every past month and year instead
+  of losing "This Month" when it rolls over. Added a "Last Month" tile and an
+  Energy History section with a month picker and a year picker (jump to any month
+  or any year you have data for), 1 / 3 / 6 / 12 month and All filters, a
+  month-by-month list and a by-year summary. It reads the daily data the plugin
+  was already recording, so past months appear right away. History is tiny (a few
+  bytes per month) and days the server was off are not counted.
+- Changed: on the energy tiles the cost is now shown at full size beside the kWh
+  (it was small subtext before), and the small min/max numbers on every tile were
+  enlarged to match, for readability.
 ###2026.08.20
 - Fixed: a fresh install or reinstall could fail with "'/bin/bash' returned 1",
   and the plugin could vanish after a reboot. The pre-install cleanup step
