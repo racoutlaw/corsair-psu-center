@@ -27,7 +27,7 @@ define('ENERGYD',  '/usr/local/emhttp/plugins/corsairpsucenter/energyd.php');
 
 function read_config() {
     $def = ['mode' => 'auto', 'fixed' => 40, 'curve' => '20,30 40,35 55,55 70,80 85,100',
-            'ocp' => 'unknown', 'rate' => 0, 'currency' => '$', 'mains' => 'auto'];
+            'ocp' => 'unknown', 'rate' => 0, 'currency' => '$', 'currency_pos' => 'before', 'mains' => 'auto'];
     if (!file_exists(CFG_FILE)) return $def;
     $c = @parse_ini_file(CFG_FILE);
     return is_array($c) ? array_merge($def, $c) : $def;
@@ -188,7 +188,8 @@ switch ($action) {
         $cfg  = read_config();
         $rate = isset($cfg['rate']) ? floatval($cfg['rate']) : 0.0;
         $cur  = isset($cfg['currency']) ? $cfg['currency'] : '$';
-        echo json_encode(energy_summary($rate, $cur));
+        $pos  = isset($cfg['currency_pos']) ? $cfg['currency_pos'] : 'before';
+        echo json_encode(energy_summary($rate, $cur, $pos));
         break;
 
     case 'setrate':
@@ -196,10 +197,13 @@ switch ($action) {
         if (isset($_REQUEST['rate']))     $cfg['rate'] = max(0, floatval($_REQUEST['rate']));
         if (isset($_REQUEST['currency'])) {
             $cur = preg_replace('/[^\p{L}\p{Sc}.\s]/u', '', (string)$_REQUEST['currency']);
-            $cfg['currency'] = ($cur === '') ? '$' : mb_substr($cur, 0, 4);
+            $cfg['currency'] = ($cur === '') ? '$' : mb_substr(trim($cur), 0, 4);
+        }
+        if (isset($_REQUEST['currency_pos'])) {
+            $cfg['currency_pos'] = ($_REQUEST['currency_pos'] === 'after') ? 'after' : 'before';
         }
         write_config($cfg);
-        echo json_encode(['ok' => true, 'energy' => energy_summary(floatval($cfg['rate']), $cfg['currency'] ?? '$')]);
+        echo json_encode(['ok' => true, 'energy' => energy_summary(floatval($cfg['rate']), $cfg['currency'] ?? '$', $cfg['currency_pos'] ?? 'before')]);
         break;
 
     case 'resetenergy':
