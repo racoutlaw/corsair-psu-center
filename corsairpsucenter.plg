@@ -2,12 +2,12 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "corsairpsucenter">
 <!ENTITY author    "racoutlaw">
-<!ENTITY version   "2026.09.10">
+<!ENTITY version   "2026.09.12">
 <!ENTITY launch    "CorsairPSUCenter">
 <!ENTITY gitURL    "https://raw.githubusercontent.com/racoutlaw/corsair-psu-center/main">
 <!ENTITY pluginURL "&gitURL;/&name;.plg">
 <!ENTITY source    "&gitURL;/archive/&name;-&version;-x86_64.txz">
-<!ENTITY md5       "a9675cb170fa69309dd2fcd2b02942e4">
+<!ENTITY md5       "59ab5f5d65e357b6c7afd409f4c0bb70">
 <!ENTITY plugdir   "/boot/config/plugins/&name;">
 ]>
 
@@ -21,6 +21,11 @@
         support="https://forums.unraid.net/topic/200056-plugin-corsair-psu-center-icue-style-dashboard-and-fan-control-for-corsair-hxirmi-psus/">
 
 <CHANGES>
+###2026.09.12
+- New: currency selection. Choose the currency shown for costs from the new
+  Currency panel - USD, EUR, GBP, JPY and more, or a Custom symbol - and pick
+  whether it sits before the amount ($1) or after it (1 EUR). Every cost updates
+  to match: the tiles, Last Month, the month/year pickers and the history lists.
 ###2026.09.10
 - New: energy history. The dashboard now keeps every past month and year instead
   of losing "This Month" when it rolls over. Added a "Last Month" tile and an
