@@ -179,7 +179,7 @@ function energy_read_daily() {
  * $currency a display symbol. Lifetime uses the authoritative running counter;
  * today/week/month/year come from the per-day buckets (best effort).
  */
-function energy_summary($rate = 0.0, $currency = '$') {
+function energy_summary($rate = 0.0, $currency = '$', $currencyPos = 'before') {
     $st    = energy_load_state();
     $daily = energy_read_daily();
     // fold today's in-progress bucket in
@@ -249,8 +249,9 @@ function energy_summary($rate = 0.0, $currency = '$') {
         'last_month' => $mk($wh_lastmonth),
         'months'     => $months,
         'years'      => $years,
-        'rate'     => (float)$rate,
-        'currency' => $currency,
+        'rate'         => (float)$rate,
+        'currency'     => $currency,
+        'currency_pos' => ($currencyPos === 'after') ? 'after' : 'before',
         'since'    => $st['since'] ? intval($st['since']) : null,
         'running'  => energyd_running(),
         'series'   => $series,
