@@ -94,6 +94,10 @@ Icon="corsairpsucenter.png"
 .cpc-pickres { font-size:1.2em; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .cpc-pickres .pk-k { color:#f0c040; }
 .cpc-pickres .pk-c { color:#6fc26f; margin-left:.55em; }
+/* currency card */
+.cpc-cur-input { width:100%; background:#22262e; color:#e8eaed; border:1px solid #39404b; border-radius:4px;
+                 padding:.4em .6em; font-size:.95em; margin-bottom:.55em; }
+.cpc-cur-input:focus { outline:none; border-color:#f0c040; background:#22262e; color:#e8eaed; }
 </style>
 
 <div id="cpc">
@@ -144,6 +148,19 @@ Icon="corsairpsucenter.png"
         <div class="cpc-note">Single rail uses one combined overcurrent threshold for the whole +12V
         output &mdash; fewer nuisance trips when several drives spin up together. Multi rail (factory
         default) protects each output group separately.</div>
+      </div>
+
+      <div class="cpc-card">
+        <h3>Currency</h3>
+        <select class="cpc-select" id="curSelect" style="width:100%;min-width:0;margin-bottom:.55em"></select>
+        <input type="text" id="curCustom" class="cpc-cur-input" maxlength="4" placeholder="Symbol, e.g. Fr" hidden>
+        <div style="margin-bottom:.4em">
+          <button class="cpc-btn" id="curBefore">Before $1</button>
+          <button class="cpc-btn" id="curAfter">After 1&#8201;&euro;</button>
+        </div>
+        <div class="cpc-row"><span>Example</span><b id="curPreview">$0.15</b></div>
+        <div class="cpc-note">Pick a currency, or choose Custom to type any symbol. Placement sets whether the
+        symbol sits before the amount ($1) or after it (1&#8201;&euro;).</div>
       </div>
     </div>
 
@@ -249,7 +266,19 @@ const ETILES = [
   {k:'today', l:'Today'}, {k:'week', l:'This Week'}, {k:'month', l:'This Month'},
   {k:'last_month', l:'Last Month'}, {k:'year', l:'This Year'}, {k:'lifetime', l:'Lifetime'}
 ];
-let lastRate = 0, lastCur = '$';
+let lastRate = 0, lastCur = '$', lastPos = 'before';
+const CURRENCIES = [
+  {sym:'$',  label:'$   US Dollar',         pos:'before'},
+  {sym:'€',  label:'€   Euro',              pos:'after'},
+  {sym:'£',  label:'£   British Pound',     pos:'before'},
+  {sym:'¥',  label:'¥   Yen / Yuan',        pos:'before'},
+  {sym:'kr', label:'kr  Krona / Krone',     pos:'after'},
+  {sym:'C$', label:'C$  Canadian Dollar',   pos:'before'},
+  {sym:'A$', label:'A$  Australian Dollar', pos:'before'},
+  {sym:'R$', label:'R$  Brazilian Real',    pos:'before'},
+  {sym:'zł', label:'zł  Polish Zloty',      pos:'after'},
+  {sym:'__custom__', label:'Custom…',       pos:null}
+];
 let histMonths = [], histYears = [], histN = 0;
 let pickYm = null, pickYear = null, pickSig = '';
 
@@ -488,22 +517,25 @@ document.getElementById('mains230').onclick = ()=>
 
 // ---- energy usage + cost ----
 function kwhFmt(v){ v = Number(v)||0; return v<10 ? v.toFixed(3) : (v<100 ? v.toFixed(2) : v.toFixed(1)); }
+// format a cost with the chosen symbol + placement ("$1.23" vs "1.23 €")
+function money(a){ const s = Number(a).toFixed(2); return lastPos==='after' ? (s+' '+lastCur) : (lastCur+s); }
 function applyEnergy(e){
   if (!e) return;
-  lastRate = e.rate || 0; lastCur = e.currency || '$';
+  lastRate = e.rate || 0; lastCur = e.currency || '$'; lastPos = e.currency_pos || 'before';
   ETILES.forEach(t=>{
     const d = e[t.k] || {kwh:0, cost:0};
     document.getElementById('ek_'+t.k).textContent = kwhFmt(d.kwh);
     const ce = document.getElementById('ec_'+t.k);
-    if (lastRate>0){ ce.textContent = lastCur + Number(d.cost).toFixed(2); ce.parentElement.classList.remove('zero'); }
+    if (lastRate>0){ ce.textContent = money(d.cost); ce.parentElement.classList.remove('zero'); }
     else { ce.textContent = '—'; ce.parentElement.classList.add('zero'); }
   });
-  document.getElementById('e_rate').textContent = lastCur + Number(lastRate).toFixed(2);
+  document.getElementById('e_rate').textContent = money(lastRate);
   const since = e.since ? new Date(e.since*1000) : null;
   document.getElementById('e_since').textContent = since ? since.toLocaleDateString() : '--';
   histMonths = e.months || []; histYears = e.years || []; renderHist(); populatePickers();
+  syncCurrencyControls();
 }
-function costCell(v){ return lastRate>0 ? (lastCur + Number(v).toFixed(2)) : '—'; }
+function costCell(v){ return lastRate>0 ? money(v) : '—'; }
 function renderHist(){
   const mtb = document.getElementById('histBodyM'); if (!mtb) return;
   const rows = histN>0 ? histMonths.slice(0, histN) : histMonths;
@@ -527,7 +559,7 @@ document.querySelectorAll('#histFilter .cpc-btn').forEach(b=>{
 // ---- pick any specific month / year ----
 function pickResHtml(kwh, cost){
   let h = '<span class="pk-k">'+kwhFmt(kwh)+' kWh</span>';
-  if (lastRate>0) h += '<span class="pk-c">'+lastCur+Number(cost).toFixed(2)+'</span>';
+  if (lastRate>0) h += '<span class="pk-c">'+money(cost)+'</span>';
   return h;
 }
 function updateMonthPickRes(){
@@ -577,6 +609,42 @@ document.getElementById('resetTile').onclick = ()=>{
     else msg(false,'Reset failed.');
   });
 };
+
+// ---- currency (symbol + placement) ----
+(function(){
+  const sel = document.getElementById('curSelect');
+  if (sel) sel.innerHTML = CURRENCIES.map(c=>'<option value="'+c.sym+'">'+c.label+'</option>').join('');
+})();
+function syncCurrencyControls(){
+  const sel = document.getElementById('curSelect'); if (!sel) return;
+  const custom = document.getElementById('curCustom');
+  const preset = CURRENCIES.find(c=>c.sym===lastCur && c.sym!=='__custom__');
+  if (preset){ sel.value = lastCur; custom.hidden = true; }
+  else { sel.value = '__custom__'; custom.hidden = false; if (document.activeElement!==custom) custom.value = lastCur; }
+  document.getElementById('curBefore').classList.toggle('active', lastPos!=='after');
+  document.getElementById('curAfter').classList.toggle('active', lastPos==='after');
+  document.getElementById('curPreview').textContent = money(0.15);
+}
+function applyCurrency(sym, pos){
+  post({action:'setrate', currency:sym, currency_pos:pos}).then(resp=>{
+    if (resp && resp.ok){ applyEnergy(resp.energy); msg(true,'Currency updated.'); }
+    else msg(false,'Could not save currency.');
+  });
+}
+document.getElementById('curSelect').onchange = e=>{
+  const v = e.target.value;
+  const custom = document.getElementById('curCustom');
+  if (v==='__custom__'){ custom.hidden = false; custom.value=''; custom.focus(); return; }
+  custom.hidden = true;
+  const c = CURRENCIES.find(x=>x.sym===v);
+  applyCurrency(c.sym, c.pos || lastPos);
+};
+document.getElementById('curCustom').onchange = e=>{
+  const sym = (e.target.value||'').trim();
+  if (sym) applyCurrency(sym, lastPos);
+};
+document.getElementById('curBefore').onclick = ()=> applyCurrency(lastCur, 'before');
+document.getElementById('curAfter').onclick  = ()=> applyCurrency(lastCur, 'after');
 
 // ---- text size (persisted per browser) ----
 const app = document.getElementById('cpc');
