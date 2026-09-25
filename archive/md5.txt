@@ -1,3 +1,4 @@
+7d7af2fabff54e1df6069e0f68cf0cbe  corsairpsucenter-2026.09.25-x86_64.txz
 59ab5f5d65e357b6c7afd409f4c0bb70  corsairpsucenter-2026.09.24-x86_64.txz
 59ab5f5d65e357b6c7afd409f4c0bb70  corsairpsucenter-2026.09.12-x86_64.txz
 a9675cb170fa69309dd2fcd2b02942e4  corsairpsucenter-2026.09.10-x86_64.txz
