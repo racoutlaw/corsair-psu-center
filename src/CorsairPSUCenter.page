@@ -137,7 +137,8 @@ Icon="corsairpsucenter.png"
         <button class="cpc-preset" data-preset="quiet">Quiet</button>
         <button class="cpc-preset" data-preset="balanced">Balanced</button>
         <button class="cpc-preset" data-preset="performance">Performance</button>
-        <button class="cpc-preset" data-preset="max">Max (100%)</button>
+        <button class="cpc-preset" data-preset="fixed">Fixed</button>
+        <button class="cpc-preset" data-preset="customcurve">Custom Curve</button>
       </div>
 
       <div class="cpc-card">
@@ -202,12 +203,7 @@ Icon="corsairpsucenter.png"
       </div>
 
       <div class="cpc-card" style="margin-top:12px">
-        <h3>Fan Curve</h3>
-        <div>
-          <button class="cpc-btn" id="mAuto">Default</button>
-          <button class="cpc-btn" id="mFixed">Fixed %</button>
-          <button class="cpc-btn" id="mCurve">Custom Curve</button>
-        </div>
+        <h3>Fan Control</h3>
         <div id="fixedBox" style="display:none">
           <input type="range" min="30" max="100" value="40" class="cpc-slider" id="fixedSlider">
           <div class="cpc-row"><span>Fixed duty</span><b><span id="fixedVal">40</span>%</b></div>
@@ -334,12 +330,11 @@ function spark(k){
   document.querySelector('#sp_'+k+' polyline').setAttribute('points', pts);
 }
 
-let cfgMode = 'auto', curvePts = [];
+let cfgMode = 'auto', curvePts = [], fixedDirty = false;
 
 function setModeButtons(m){
-  document.getElementById('mAuto').classList.toggle('active', m==='auto');
-  document.getElementById('mFixed').classList.toggle('active', m==='fixed');
-  document.getElementById('mCurve').classList.toggle('active', m==='curve');
+  // Fan modes now live in the Cooling Presets list; this just reveals the matching
+  // editor (slider for Fixed, curve canvas for Custom) in the Fan Control card.
   document.getElementById('fixedBox').style.display = (m==='fixed') ? 'block':'none';
   document.getElementById('curveBox').style.display = (m==='curve') ? 'block':'none';
 }
@@ -348,6 +343,16 @@ function setMainsButtons(m){
   document.getElementById('mainsAuto').classList.toggle('active', m==='auto');
   document.getElementById('mains115').classList.toggle('active', m==='115');
   document.getElementById('mains230').classList.toggle('active', m==='230');
+}
+
+// A preset (Quiet/Balanced/Performance) is applied as a curve, so the stored mode
+// is just "curve". Match the active curve back to the preset that produced it so
+// the Fan mode line names it instead of the generic "Custom curve". A hand-dragged
+// curve matches nothing -> stays "Custom curve". (Default/Fixed/Max are unchanged.)
+function curveName(curveStr){
+  const names = { quiet:'Quiet', balanced:'Balanced', performance:'Performance' };
+  for (const k in names) if (PRESETS[k] === curveStr) return names[k];
+  return 'Custom curve';
 }
 
 function refresh(){
@@ -365,7 +370,7 @@ function refresh(){
     document.getElementById('sEff').textContent    = s.efficiency===null ? 'n/a' : f(s.efficiency,1)+' %';
     document.getElementById('sFan').textContent    = f(s.fan_rpm,0)+' RPM';
     document.getElementById('sMode').textContent   =
-      s.fan_mode==='auto' ? 'Default' : (s.fan_mode==='fixed' ? 'Fixed '+s.fan_fixed+'%' : 'Custom curve');
+      s.fan_mode==='auto' ? 'Default' : (s.fan_mode==='fixed' ? 'Fixed '+s.fan_fixed+'%' : curveName(s.fan_curve));
     document.getElementById('sOcp').textContent    = s.ocp_mode;
     setMainsButtons(s.mains||'auto');
 
@@ -385,8 +390,12 @@ function refresh(){
 
     if (cfgMode === null || cfgMode === undefined) cfgMode = s.fan_mode;
     if (!curvePts.length) { curvePts = parseCurve(s.fan_curve); drawCurve(); }
-    document.getElementById('fixedSlider').value = s.fan_fixed;
-    document.getElementById('fixedVal').textContent = s.fan_fixed;
+    // Don't yank the slider out from under the user while they're dragging it -
+    // only sync it from the server when they aren't mid-adjustment (fixedDirty).
+    if (!fixedDirty) {
+      document.getElementById('fixedSlider').value = s.fan_fixed;
+      document.getElementById('fixedVal').textContent = s.fan_fixed;
+    }
     document.getElementById('fanNote').textContent = s.fan_mode==='curve'
       ? ('Curve service '+(s.daemon?'running':'NOT running')+' — duty is re-applied from VRM temperature every 10s.')
       : 'The PSU cannot store a curve in firmware, so custom curves are driven from Unraid (same as iCUE does on Windows). Minimum duty is 30%.';
@@ -470,15 +479,12 @@ function post(params){
     });
 }
 
-document.getElementById('mAuto').onclick  = ()=>{ cfgMode='auto';  setModeButtons('auto');
-  post({action:'setfanmode',mode:'auto'}).then(r=>{ msg(r.ok, r.ok?'Fan handed back to PSU firmware.':r.output); refresh(); }); };
-document.getElementById('mFixed').onclick = ()=>{ cfgMode='fixed'; setModeButtons('fixed'); };
-document.getElementById('mCurve').onclick = ()=>{ cfgMode='curve'; setModeButtons('curve'); drawCurve(); };
+// Fan modes are driven entirely from the Cooling Presets list (.cpc-preset handler below).
 
-document.getElementById('fixedSlider').oninput = e=>{ document.getElementById('fixedVal').textContent=e.target.value; };
+document.getElementById('fixedSlider').oninput = e=>{ fixedDirty = true; document.getElementById('fixedVal').textContent=e.target.value; };
 document.getElementById('applyFixed').onclick = ()=>{
   const d=document.getElementById('fixedSlider').value;
-  post({action:'setfanmode',mode:'fixed',fixed:d}).then(r=>{ msg(r.ok, r.ok?('Fan set to '+d+'%.'):r.output); refresh(); });
+  post({action:'setfanmode',mode:'fixed',fixed:d}).then(r=>{ fixedDirty=false; msg(r.ok, r.ok?('Fan set to '+d+'%.'):r.output); refresh(); });
 };
 document.getElementById('applyCurve').onclick = ()=>{
   const c=curvePts.map(p=>p.t+','+p.d).join(' ');
@@ -491,12 +497,17 @@ document.querySelectorAll('.cpc-preset').forEach(b=>{
     const p=b.dataset.preset;
     if (p==='auto'){ cfgMode='auto'; setModeButtons('auto');
       post({action:'setfanmode',mode:'auto'}).then(r=>{ msg(r.ok, r.ok?'Default (PSU controlled).':r.output); refresh(); });
-    } else if (p==='max'){
-      // A flat 100% "curve" needs no daemon - set it once as a fixed duty.
-      cfgMode='fixed'; setModeButtons('fixed');
-      document.getElementById('fixedSlider').value = 100;
-      document.getElementById('fixedVal').textContent = 100;
-      post({action:'setfanmode',mode:'fixed',fixed:100}).then(r=>{ msg(r.ok, r.ok?'Fan set to 100% (maximum).':r.output); refresh(); });
+    } else if (p==='fixed'){
+      // One click applies immediately, like the other presets: re-apply the last
+      // fixed duty shown on the slider, and reveal the slider so it can be changed
+      // (drag + Apply). No longer forces 100%.
+      cfgMode='fixed'; setModeButtons('fixed'); fixedDirty=false;
+      const d=document.getElementById('fixedSlider').value;
+      post({action:'setfanmode',mode:'fixed',fixed:d}).then(r=>{ msg(r.ok, r.ok?('Fan set to '+d+'%.'):r.output); refresh(); });
+    } else if (p==='customcurve'){
+      // Reveal the draggable curve editor seeded with the current curve; the user
+      // drags points and clicks "Apply Curve". Device shows "Custom curve" once applied.
+      cfgMode='curve'; setModeButtons('curve'); drawCurve();
     } else {
       curvePts=parseCurve(PRESETS[p]); cfgMode='curve'; setModeButtons('curve'); drawCurve();
       post({action:'setfanmode',mode:'curve',curve:PRESETS[p]}).then(r=>{ msg(r.ok, r.ok?('Preset "'+p+'" applied.'):r.output); refresh(); });
