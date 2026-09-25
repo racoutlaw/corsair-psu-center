@@ -53,6 +53,9 @@ means fewer nuisance trips when several drives spin up at once.
   recorded (a few bytes per month); days the server was off simply aren't counted
 - **Currency** — choose the symbol shown for costs (USD, EUR, GBP, JPY and more, or a
   custom symbol) and whether it sits before the amount (`$1`) or after it (`1 €`)
+- **Your history survives a reinstall** — removing the plugin keeps your settings and
+  energy history on the flash, so pulling it to troubleshoot and reinstalling picks
+  everything right back up (only the downloaded package files are cleared)
 
 **Mains voltage (Auto / 115V / 230V)** — efficiency and input power are interpolated for
 your mains voltage, normally read straight from the PSU. A few units — notably the
