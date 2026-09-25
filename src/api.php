@@ -27,7 +27,8 @@ define('ENERGYD',  '/usr/local/emhttp/plugins/corsairpsucenter/energyd.php');
 
 function read_config() {
     $def = ['mode' => 'auto', 'fixed' => 40, 'curve' => '20,30 40,35 55,55 70,80 85,100',
-            'ocp' => 'unknown', 'rate' => 0, 'currency' => '$', 'currency_pos' => 'before', 'mains' => 'auto'];
+            'ocp' => 'unknown', 'rate' => 0, 'currency' => '$', 'currency_pos' => 'before', 'mains' => 'auto',
+            'customcurve' => '20,30 40,35 55,55 70,80 85,100'];
     if (!file_exists(CFG_FILE)) return $def;
     $c = @parse_ini_file(CFG_FILE);
     return is_array($c) ? array_merge($def, $c) : $def;
@@ -168,6 +169,7 @@ function get_status() {
         'fan_mode'   => $cfg['mode'],
         'fan_fixed'  => intval($cfg['fixed']),
         'fan_curve'  => $cfg['curve'],
+        'custom_curve' => isset($cfg['customcurve']) ? $cfg['customcurve'] : $cfg['curve'],
         'ocp_mode'   => $cfg['ocp'],
         'daemon'     => daemon_running(),
     ];
@@ -250,6 +252,10 @@ switch ($action) {
             }
             if ($pts) $cfg['curve'] = implode(' ', $pts);
         }
+        // Remember the last hand-drawn curve separately so the "Custom Curve" preset can
+        // restore it later. Cooling presets (quiet/balanced/performance) drive the same
+        // 'curve' field but do NOT send remember_custom, so they never clobber it.
+        if (!empty($_REQUEST['remember_custom'])) $cfg['customcurve'] = $cfg['curve'];
         write_config($cfg);
 
         if ($cfg['mode'] === 'auto') {
