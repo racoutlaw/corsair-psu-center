@@ -2,12 +2,12 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "corsairpsucenter">
 <!ENTITY author    "racoutlaw">
-<!ENTITY version   "2026.09.25">
+<!ENTITY version   "2026.09.26">
 <!ENTITY launch    "CorsairPSUCenter">
 <!ENTITY gitURL    "https://raw.githubusercontent.com/racoutlaw/corsair-psu-center/main">
 <!ENTITY pluginURL "&gitURL;/&name;.plg">
 <!ENTITY source    "&gitURL;/archive/&name;-&version;-x86_64.txz">
-<!ENTITY md5       "7d7af2fabff54e1df6069e0f68cf0cbe">
+<!ENTITY md5       "62174c06f6c842db3fb5bb05656a3dee">
 <!ENTITY plugdir   "/boot/config/plugins/&name;">
 ]>
 
@@ -21,6 +21,11 @@
         support="https://forums.unraid.net/topic/200056-plugin-corsair-psu-center-icue-style-dashboard-and-fan-control-for-corsair-hxirmi-psus/">
 
 <CHANGES>
+###2026.09.26
+- The "Custom Curve" preset now applies your last saved custom curve on a single
+  click, like the other presets - no separate "Apply Curve" needed to get it going.
+  Your hand-drawn curve is remembered on its own, so switching to Quiet / Balanced /
+  Performance and back to Custom Curve returns to your curve instead of theirs.
 ###2026.09.25
 - Fan control tidied up: every mode now lives in one Cooling Presets list -
   Default, Quiet, Balanced, Performance, Fixed and Custom Curve (the separate
