@@ -2,12 +2,12 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "corsairpsucenter">
 <!ENTITY author    "racoutlaw">
-<!ENTITY version   "2026.09.24">
+<!ENTITY version   "2026.09.25">
 <!ENTITY launch    "CorsairPSUCenter">
 <!ENTITY gitURL    "https://raw.githubusercontent.com/racoutlaw/corsair-psu-center/main">
 <!ENTITY pluginURL "&gitURL;/&name;.plg">
 <!ENTITY source    "&gitURL;/archive/&name;-&version;-x86_64.txz">
-<!ENTITY md5       "59ab5f5d65e357b6c7afd409f4c0bb70">
+<!ENTITY md5       "7d7af2fabff54e1df6069e0f68cf0cbe">
 <!ENTITY plugdir   "/boot/config/plugins/&name;">
 ]>
 
@@ -21,6 +21,17 @@
         support="https://forums.unraid.net/topic/200056-plugin-corsair-psu-center-icue-style-dashboard-and-fan-control-for-corsair-hxirmi-psus/">
 
 <CHANGES>
+###2026.09.25
+- Fan control tidied up: every mode now lives in one Cooling Presets list -
+  Default, Quiet, Balanced, Performance, Fixed and Custom Curve (the separate
+  mode buttons inside the fan card are gone; that card is now just the editor).
+- The Fan mode readout names the active preset (Quiet / Balanced / Performance)
+  instead of always saying "Custom curve"; a hand-drawn curve still shows
+  "Custom curve".
+- The old "Max (100%)" button is now "Fixed" - it applies the speed you pick on
+  the slider instead of forcing 100%.
+- Fixed: the fixed-speed slider no longer snaps back to the stored value while
+  you are dragging it, so you have time to set a duty and Apply.
 ###2026.09.24
 - Changed: removing the plugin no longer deletes your data. Uninstalling now keeps
   your settings and the full energy history (kWh + cost) on the flash, so pulling
