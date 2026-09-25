@@ -330,7 +330,7 @@ function spark(k){
   document.querySelector('#sp_'+k+' polyline').setAttribute('points', pts);
 }
 
-let cfgMode = 'auto', curvePts = [], fixedDirty = false;
+let cfgMode = 'auto', curvePts = [], fixedDirty = false, lastCustomCurve = '';
 
 function setModeButtons(m){
   // Fan modes now live in the Cooling Presets list; this just reveals the matching
@@ -389,6 +389,7 @@ function refresh(){
     });
 
     if (cfgMode === null || cfgMode === undefined) cfgMode = s.fan_mode;
+    lastCustomCurve = s.custom_curve || s.fan_curve;   // the last hand-drawn curve, for the Custom Curve preset
     if (!curvePts.length) { curvePts = parseCurve(s.fan_curve); drawCurve(); }
     // Don't yank the slider out from under the user while they're dragging it -
     // only sync it from the server when they aren't mid-adjustment (fixedDirty).
@@ -488,7 +489,7 @@ document.getElementById('applyFixed').onclick = ()=>{
 };
 document.getElementById('applyCurve').onclick = ()=>{
   const c=curvePts.map(p=>p.t+','+p.d).join(' ');
-  post({action:'setfanmode',mode:'curve',curve:c}).then(r=>{ msg(r.ok, r.ok?'Curve applied and service started.':r.output); refresh(); });
+  post({action:'setfanmode',mode:'curve',curve:c,remember_custom:1}).then(r=>{ msg(r.ok, r.ok?'Curve applied and service started.':r.output); refresh(); });
 };
 document.querySelectorAll('.cpc-preset').forEach(b=>{
   b.onclick = ()=>{
@@ -505,9 +506,14 @@ document.querySelectorAll('.cpc-preset').forEach(b=>{
       const d=document.getElementById('fixedSlider').value;
       post({action:'setfanmode',mode:'fixed',fixed:d}).then(r=>{ msg(r.ok, r.ok?('Fan set to '+d+'%.'):r.output); refresh(); });
     } else if (p==='customcurve'){
-      // Reveal the draggable curve editor seeded with the current curve; the user
-      // drags points and clicks "Apply Curve". Device shows "Custom curve" once applied.
-      cfgMode='curve'; setModeButtons('curve'); drawCurve();
+      // One click applies your last hand-drawn curve immediately (like Fixed), and
+      // opens the editor seeded with it. Cooling presets don't overwrite this
+      // remembered curve (see remember_custom in api.php).
+      cfgMode='curve'; setModeButtons('curve');
+      if (lastCustomCurve) curvePts = parseCurve(lastCustomCurve);
+      drawCurve();
+      const cc = curvePts.map(p=>p.t+','+p.d).join(' ');
+      post({action:'setfanmode',mode:'curve',curve:cc,remember_custom:1}).then(r=>{ msg(r.ok, r.ok?'Custom curve applied.':r.output); refresh(); });
     } else {
       curvePts=parseCurve(PRESETS[p]); cfgMode='curve'; setModeButtons('curve'); drawCurve();
       post({action:'setfanmode',mode:'curve',curve:PRESETS[p]}).then(r=>{ msg(r.ok, r.ok?('Preset "'+p+'" applied.'):r.output); refresh(); });
