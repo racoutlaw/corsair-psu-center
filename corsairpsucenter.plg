@@ -2,7 +2,7 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "corsairpsucenter">
 <!ENTITY author    "racoutlaw">
-<!ENTITY version   "2026.09.12">
+<!ENTITY version   "2026.09.24">
 <!ENTITY launch    "CorsairPSUCenter">
 <!ENTITY gitURL    "https://raw.githubusercontent.com/racoutlaw/corsair-psu-center/main">
 <!ENTITY pluginURL "&gitURL;/&name;.plg">
@@ -21,6 +21,12 @@
         support="https://forums.unraid.net/topic/200056-plugin-corsair-psu-center-icue-style-dashboard-and-fan-control-for-corsair-hxirmi-psus/">
 
 <CHANGES>
+###2026.09.24
+- Changed: removing the plugin no longer deletes your data. Uninstalling now keeps
+  your settings and the full energy history (kWh + cost) on the flash, so pulling
+  the plugin to troubleshoot and reinstalling picks everything right back up - only
+  the downloaded package files are cleared. Delete the plugin's folder by hand if
+  you want a full purge. Thanks to PaliKinG3 for the report (issue #7).
 ###2026.09.12
 - New: currency selection. Choose the currency shown for costs from the new
   Currency panel - USD, EUR, GBP, JPY and more, or a Custom symbol - and pick
@@ -189,10 +195,17 @@ for pkg in /var/lib/pkgtools/packages/&name;-*; do
 done
 
 rm -rf "/usr/local/emhttp/plugins/&name;"
-rm -rf "&plugdir;"
+# Preserve the user's data across a remove/reinstall. Deleting &plugdir; here would
+# wipe settings.cfg AND the energy history (energy/state.json + energy/daily.csv) -
+# losing months of usage/cost data on an uninstall (issue #7). Instead only clear
+# the downloaded package files and keep the config + history, so a reinstall picks
+# them straight back up. The glob is nullglob-guarded (set at the top of this block).
+for txz in "&plugdir;"/*.txz; do [ -e "$txz" ] &amp;&amp; rm -f "$txz"; done
 rm -f "/boot/config/plugins/&name;.plg"
 rm -f /var/run/corsairpsucenter-fand.pid
 echo "Corsair PSU Center removed."
+echo "Your settings and energy history were kept at &plugdir;"
+echo "(delete that folder by hand if you want to purge everything)."
 </INLINE>
 </FILE>
 
