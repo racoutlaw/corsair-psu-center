@@ -3,6 +3,12 @@
 All notable changes to **Corsair PSU Center**, newest first. This mirrors the in‑plugin
 changelog shown in Unraid's Community Applications. Versions are date‑based (`YYYY.MM.DD`).
 
+## 2026.09.26
+- The **Custom Curve** preset now applies your last saved custom curve on a single
+  click, like the other presets — no separate "Apply Curve" needed to get it going.
+  Your hand‑drawn curve is remembered on its own, so switching to Quiet / Balanced /
+  Performance and back to Custom Curve returns to *your* curve instead of theirs.
+
 ## 2026.09.25
 - Fan control tidied up: every mode now lives in one **Cooling Presets** list —
   Default, Quiet, Balanced, Performance, Fixed and Custom Curve. The separate mode
