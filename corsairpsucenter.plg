@@ -2,12 +2,12 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "corsairpsucenter">
 <!ENTITY author    "racoutlaw">
-<!ENTITY version   "2026.11.10">
+<!ENTITY version   "2026.11.11">
 <!ENTITY launch    "CorsairPSUCenter">
 <!ENTITY gitURL    "https://raw.githubusercontent.com/racoutlaw/corsair-psu-center/main">
 <!ENTITY pluginURL "&gitURL;/&name;.plg">
 <!ENTITY source    "&gitURL;/archive/&name;-&version;-x86_64.txz">
-<!ENTITY md5       "84eb99163e72a92370ebbc10f889ee6b">
+<!ENTITY md5       "045826d67ac020ef9797b40addca950d">
 <!ENTITY plugdir   "/boot/config/plugins/&name;">
 ]>
 
@@ -21,6 +21,12 @@
         support="https://forums.unraid.net/topic/200056-plugin-corsair-psu-center-icue-style-dashboard-and-fan-control-for-corsair-hxirmi-psus/">
 
 <CHANGES>
+###2026.11.11
+- Fixed: on Unraid's dark themes (Black / Gray) the Corsair logo on the new
+  Dashboard tile was hard to see - it is a black logo and blended into the dark
+  background. It now shows as a white silhouette on dark themes; the light themes
+  (White / Azure) keep it black. It follows a live theme change on its own. Thanks
+  to PaliKinG3 for the report (issue #8).
 ###2026.11.10
 - New: a Corsair PSU tile on Unraid's main Dashboard. It shows the live power draw,
   load and efficiency, VRM and case temperatures, fan speed and mode, and today /
