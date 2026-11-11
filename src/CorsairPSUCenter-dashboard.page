@@ -13,7 +13,7 @@ $mytiles['corsairpsucenter']['column1'] = <<<EOT
   <td>
     <span class="tile-header">
       <span class="tile-header-left">
-        <img src="/plugins/corsairpsucenter/icons/corsairpsucenter.png" alt="" style="width:32px;height:32px">
+        <img class="cpc-logo" src="/plugins/corsairpsucenter/icons/corsairpsucenter.png" alt="" style="width:32px;height:32px">
         <div class="section">_(Corsair PSU)_<br>
           <span id="cpc-dash-sub">_(Loading)_&hellip;</span>
         </div>
@@ -40,6 +40,12 @@ EOT;
 <style>
 #tblCpcDash span[id^="cpc-dash-"]{font-variant-numeric:tabular-nums}
 #tblCpcDash .w36{display:inline-block}
+/* The Corsair logo PNG is solid black, so it disappears on Unraid's dark themes
+   (black / gray). On those, render it as a white silhouette; light themes
+   (white / azure) keep the original black. Keyed off the theme class Unraid puts
+   on <html>, so it also follows a live theme switch. */
+html.Theme--black #tblCpcDash .cpc-logo,
+html.Theme--gray  #tblCpcDash .cpc-logo{filter:brightness(0) invert(1)}
 </style>
 <script>
 (function(){
