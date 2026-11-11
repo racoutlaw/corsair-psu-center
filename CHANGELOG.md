@@ -3,6 +3,13 @@
 All notable changes to **Corsair PSU Center**, newest first. This mirrors the in‑plugin
 changelog shown in Unraid's Community Applications. Versions are date‑based (`YYYY.MM.DD`).
 
+## 2026.11.10
+- **New:** a **Corsair PSU tile on Unraid's main Dashboard**. It shows live power draw,
+  load and efficiency, VRM / case temperatures, fan RPM and mode, and today / this month /
+  lifetime energy and cost at a glance — without opening the full page. The ↗ on the tile
+  jumps straight to the plugin. It reads the data the plugin is already collecting (status
+  + energy), so it adds no extra polling of the PSU.
+
 ## 2026.09.26
 - The **Custom Curve** preset now applies your last saved custom curve on a single
   click, like the other presets — no separate "Apply Curve" needed to get it going.
