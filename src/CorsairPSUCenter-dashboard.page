@@ -1,0 +1,79 @@
+Menu="Dashboard:0"
+Icon="corsairpsucenter.png"
+Cond="version_compare(parse_ini_file('/etc/unraid-version')['version'],'6.12.0','>=')"
+---
+<?php
+/* Corsair PSU Center - dashboard tile.
+   A compact PSU readout for Unraid's main Dashboard. Rendered client-side by the
+   inline script below, which polls the plugin's EXISTING api.php endpoints
+   (status + energy) - no new backend and no extra background collector. */
+$mytiles['corsairpsucenter']['column1'] = <<<EOT
+<tbody id="tblCpcDash" title="_(Corsair PSU Center)_">
+<tr>
+  <td>
+    <span class="tile-header">
+      <span class="tile-header-left">
+        <img src="/plugins/corsairpsucenter/icons/corsairpsucenter.png" alt="" style="width:32px;height:32px">
+        <div class="section">_(Corsair PSU)_<br>
+          <span id="cpc-dash-sub">_(Loading)_&hellip;</span>
+        </div>
+      </span>
+      <span class="tile-header-right">
+        <span class="tile-header-right-controls">
+          <a href="/CorsairPSUCenter" title="_(Open Corsair PSU Center)_" aria-label="_(Open Corsair PSU Center)_">
+            <i class="fa fa-fw fa-external-link control" aria-hidden="true"></i>
+          </a>
+        </span>
+      </span>
+    </span>
+  </td>
+</tr>
+<tr><td><span class="w36"><i class="fa fa-fw fa-bolt"></i>_(Power / Load / Eff)_</span><span id="cpc-dash-pwr">--</span></td></tr>
+<tr><td><span class="w36"><i class="fa fa-fw fa-thermometer-half"></i>_(VRM / Case temp)_</span><span id="cpc-dash-temp">--</span></td></tr>
+<tr><td><span class="w36"><i class="fa fa-fw icon-fan"></i>_(Fan)_</span><span id="cpc-dash-fan">--</span></td></tr>
+<tr><td><span class="w36"><i class="fa fa-fw fa-plug"></i>_(Today)_</span><span id="cpc-dash-today">--</span></td></tr>
+<tr><td><span class="w36"><i class="fa fa-fw fa-calendar-o"></i>_(This month)_</span><span id="cpc-dash-month">--</span></td></tr>
+<tr><td><span class="w36"><i class="fa fa-fw fa-history"></i>_(Lifetime)_</span><span id="cpc-dash-life">--</span></td></tr>
+</tbody>
+EOT;
+?>
+<style>
+#tblCpcDash span[id^="cpc-dash-"]{font-variant-numeric:tabular-nums}
+#tblCpcDash .w36{display:inline-block}
+</style>
+<script>
+(function(){
+  var API='/plugins/corsairpsucenter/api.php';
+  var cur='$', pos='before', rate=0;
+  function money(a){ var s=(Number(a)||0).toFixed(2); return pos==='after'?(s+' '+cur):(cur+s); }
+  function f(v,d){ return (v===null||v===undefined)?'--':Number(v).toFixed(d); }
+  function g(id){ return document.getElementById(id); }
+  function alive(){ return !!g('tblCpcDash'); }
+  function doStatus(){
+    fetch(API+'?action=status').then(function(r){return r.json();}).then(function(s){
+      if(!alive()) return;
+      if(!s.connected){ g('cpc-dash-sub').textContent='PSU not found'; return; }
+      g('cpc-dash-sub').textContent = s.model || 'Corsair PSU';
+      var eff  = (s.efficiency===null||s.efficiency===undefined)?'n/a':f(s.efficiency,1)+'%';
+      var load = (s.load_pct===null||s.load_pct===undefined)?'n/a':f(s.load_pct,1)+'%';
+      g('cpc-dash-pwr').textContent  = f(s.power_out,0)+' W · '+load+' · '+eff;
+      g('cpc-dash-temp').textContent = f(s.temp_vrm,1)+'°C · '+f(s.temp_case,1)+'°C';
+      var mode = s.fan_mode==='auto'?'Default':(s.fan_mode==='fixed'?('Fixed '+s.fan_fixed+'%'):'Curve');
+      g('cpc-dash-fan').textContent  = f(s.fan_rpm,0)+' RPM · '+mode;
+    }).catch(function(){});
+  }
+  function doEnergy(){
+    fetch(API+'?action=energy').then(function(r){return r.json();}).then(function(e){
+      if(!alive()||!e) return;
+      cur=e.currency||'$'; pos=e.currency_pos||'before'; rate=e.rate||0;
+      function kcc(x){ x=x||{kwh:0,cost:0}; return (Number(x.kwh)||0).toFixed(2)+' kWh'+(rate>0?(' · '+money(x.cost)):''); }
+      g('cpc-dash-today').textContent = kcc(e.today);
+      g('cpc-dash-month').textContent = kcc(e.month);
+      g('cpc-dash-life').textContent  = kcc(e.lifetime);
+    }).catch(function(){});
+  }
+  function tick(){ if(!alive()) return; doStatus(); doEnergy(); }
+  tick();
+  setInterval(tick, 4000);
+})();
+</script>
