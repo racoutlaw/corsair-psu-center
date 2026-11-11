@@ -57,6 +57,12 @@ means fewer nuisance trips when several drives spin up at once.
   energy history on the flash, so pulling it to troubleshoot and reinstalling picks
   everything right back up (only the downloaded package files are cleared)
 
+**Dashboard tile** — a compact Corsair PSU tile for Unraid's main **Dashboard**, next to
+your other system tiles. It shows live power / load / efficiency, VRM and case
+temperatures, fan RPM and mode, and today / this month / lifetime energy and cost — with
+an arrow that jumps straight to the full page. It reuses the data the plugin already
+collects (sensors + energy), so it adds no extra polling of the PSU.
+
 **Mains voltage (Auto / 115V / 230V)** — efficiency and input power are interpolated for
 your mains voltage, normally read straight from the PSU. A few units — notably the
 **HX1000i (2022 revision)** — report input voltage at about double the real value over
@@ -163,6 +169,7 @@ src/                     readable sources (also inside the package)
   energyd.php            background energy / kWh collector
   fand.sh                fan curve daemon
   CorsairPSUCenter.page  the UI
+  CorsairPSUCenter-dashboard.page  the Unraid Dashboard tile
 ca_profile.xml           Community Applications repository profile
 plugins/                 Community Applications plugin template
 ```
