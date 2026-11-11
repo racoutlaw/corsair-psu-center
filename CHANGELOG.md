@@ -3,6 +3,12 @@
 All notable changes to **Corsair PSU Center**, newest first. This mirrors the in‑plugin
 changelog shown in Unraid's Community Applications. Versions are date‑based (`YYYY.MM.DD`).
 
+## 2026.11.11
+- **Fixed:** on Unraid's dark themes (Black / Gray) the Corsair logo on the Dashboard
+  tile was hard to see against the dark background (it's a black logo). It now renders as a
+  white silhouette on dark themes; the light themes (White / Azure) keep it black, and it
+  follows a live theme change on its own. Thanks to PaliKinG3 for the report (issue #8).
+
 ## 2026.11.10
 - **New:** a **Corsair PSU tile on Unraid's main Dashboard**. It shows live power draw,
   load and efficiency, VRM / case temperatures, fan RPM and mode, and today / this month /
